@@ -1,6 +1,7 @@
 package com.example.gqtphotoapp
 
 import android.content.ContentValues
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -20,9 +21,14 @@ class CameraActivity : AppCompatActivity() {
     private val CAMERA_REQUEST_CODE = 100
     private val CAMERA_PERMISSION_CODE = 101
     private var currentPhotoUri: Uri? = null
+    private var selectedAlbum: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Get selected album from intent
+        selectedAlbum = intent.getStringExtra("ALBUM_NAME")
+
         checkCameraPermission()
     }
 
@@ -42,7 +48,6 @@ class CameraActivity : AppCompatActivity() {
     private fun openCamera() {
         val cameraIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
 
-        // Create URI for the photo in public gallery
         val photoUri = createImageUri()
 
         photoUri?.let {
@@ -68,16 +73,23 @@ class CameraActivity : AppCompatActivity() {
             val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
             val imageFileName = "JPEG_${timeStamp}.jpg"
 
+            // Determine the path based on whether an album is selected
+            val relativePath = if (selectedAlbum != null) {
+                "Pictures/GQTPhotoApp/$selectedAlbum"
+            } else {
+                "Pictures/GQTPhotoApp"
+            }
+
             val contentValues = ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, imageFileName)
                 put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/GQTPhotoApp")
+                    put(MediaStore.Images.Media.RELATIVE_PATH, relativePath)
                 }
             }
 
             val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-            Log.d("CameraActivity", "Created URI: $uri")
+            Log.d("CameraActivity", "Created URI in album '$selectedAlbum': $uri")
             uri
         } catch (e: Exception) {
             Log.e("CameraActivity", "Error creating image URI", e)
@@ -92,14 +104,18 @@ class CameraActivity : AppCompatActivity() {
         if (requestCode == CAMERA_REQUEST_CODE) {
             if (resultCode == RESULT_OK) {
                 currentPhotoUri?.let { uri ->
+                    val message = if (selectedAlbum != null) {
+                        "Photo saved to '$selectedAlbum' album!"
+                    } else {
+                        "Photo saved successfully!"
+                    }
                     Log.d("CameraActivity", "Photo saved successfully at: $uri")
-                    Toast.makeText(this, "Photo saved successfully!", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, message, Toast.LENGTH_LONG).show()
                 } ?: run {
                     Log.e("CameraActivity", "Photo URI is null")
                     Toast.makeText(this, "Error: Photo not saved", Toast.LENGTH_SHORT).show()
                 }
             } else {
-                // User cancelled - delete the empty entry from MediaStore
                 currentPhotoUri?.let { uri ->
                     contentResolver.delete(uri, null, null)
                     Log.d("CameraActivity", "Deleted cancelled photo entry")

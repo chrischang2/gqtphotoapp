@@ -22,6 +22,19 @@
         app:layout_constraintVertical_chainStyle="packed" />
 
     <Button
+        android:id="@+id/btnChangeAlbum"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Change Album"
+        android:textSize="18sp"
+        android:padding="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/btnOpenCamera"
+        app:layout_constraintVertical_chainStyle="packed" />
+
+    <Button
         android:id="@+id/btnOpenCamera"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
