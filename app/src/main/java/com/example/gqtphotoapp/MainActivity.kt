@@ -1,9 +1,7 @@
 package com.example.gqtphotoapp
 
-import com.example.gqtphotoapp.R
 import android.content.Intent
 import android.os.Bundle
-import android.provider.MediaStore
 import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -14,11 +12,19 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Find the button by its ID
+        val btnAddAlbum = findViewById<Button>(R.id.btnAddAlbum)
         val btnOpenCamera = findViewById<Button>(R.id.btnOpenCamera)
         val btnViewPhotos = findViewById<Button>(R.id.btnViewPhotos)
+        val btnLabelPhoto = findViewById<Button>(R.id.btnLabelPhoto)
+        val btnViewAlbums = findViewById<Button>(R.id.btnViewAlbums)
+        val btnSettings = findViewById<Button>(R.id.btnSettings)
 
-        // Set up click listener
+        // Add Album button - now opens new activity
+        btnAddAlbum.setOnClickListener {
+            val intent = Intent(this, AddAlbumActivity::class.java)
+            startActivity(intent)
+        }
+
         btnOpenCamera.setOnClickListener {
             openCamera()
         }
@@ -26,20 +32,25 @@ class MainActivity : AppCompatActivity() {
         btnViewPhotos.setOnClickListener {
             viewPhotos()
         }
+
+        btnLabelPhoto.setOnClickListener {
+            Toast.makeText(this, "Label Photo - Coming Soon", Toast.LENGTH_SHORT).show()
+        }
+
+        // View Albums button - now functional!
+        btnViewAlbums.setOnClickListener {
+            val intent = Intent(this, ViewAlbumsActivity::class.java)
+            startActivity(intent)
+        }
+
+        btnSettings.setOnClickListener {
+            Toast.makeText(this, "Settings - Coming Soon", Toast.LENGTH_SHORT).show()
+        }
     }
 
-    // button functions
     private fun openCamera() {
-        // Create an intent to open the camera
-        val cameraIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-
-        // Check if there's a camera app available
-        if (cameraIntent.resolveActivity(packageManager) != null) {
-            startActivity(cameraIntent)
-        } else {
-            // Show a message if no camera app is found
-            Toast.makeText(this, "No camera app found", Toast.LENGTH_SHORT).show()
-        }
+        val intent = Intent(this, CameraActivity::class.java)
+        startActivity(intent)
     }
 
     private fun viewPhotos() {
@@ -47,4 +58,3 @@ class MainActivity : AppCompatActivity() {
         startActivity(intent)
     }
 }
-

@@ -7,18 +7,31 @@
     android:padding="16dp"
     tools:context=".MainActivity">
 
+    <!-- Add Album Button at the top -->
+    <Button
+        android:id="@+id/btnAddAlbum"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Add Album"
+        android:textSize="18sp"
+        android:padding="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/btnOpenCamera"
+        app:layout_constraintVertical_chainStyle="packed" />
+
     <Button
         android:id="@+id/btnOpenCamera"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="Open Camera"
         android:textSize="18sp"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@id/btnAddAlbum"
         app:layout_constraintBottom_toTopOf="@id/btnViewPhotos"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_chainStyle="packed" />
+        app:layout_constraintStart_toStartOf="parent" />
 
     <Button
         android:id="@+id/btnViewPhotos"
@@ -30,6 +43,18 @@
         app:layout_constraintTop_toBottomOf="@id/btnOpenCamera"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/btnViewAlbums" />
+
+    <Button
+        android:id="@+id/btnViewAlbums"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="View Albums"
+        android:textSize="18sp"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@id/btnViewPhotos"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toTopOf="@id/btnLabelPhoto" />
 
     <Button
@@ -39,7 +64,7 @@
         android:text="Label Photo"
         android:textSize="18sp"
         android:layout_marginTop="16dp"
-        app:layout_constraintTop_toBottomOf="@id/btnViewPhotos"
+        app:layout_constraintTop_toBottomOf="@id/btnViewAlbums"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toTopOf="@id/btnSettings" />
