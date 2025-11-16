@@ -1,6 +1,7 @@
 package com.example.gqtphotoapp
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -36,8 +37,9 @@ class ViewAlbumsActivity : AppCompatActivity() {
 
         albumAdapter = AlbumAdapter(albums) { albumName ->
             // Handle album click - will open photos in that album
-            Toast.makeText(this, "Clicked on: $albumName", Toast.LENGTH_SHORT).show()
-            // TODO: Open album photos view
+            val intent = Intent(this, ViewPhotosActivity::class.java)
+            intent.putExtra("ALBUM_NAME", albumName)
+            startActivity(intent)
         }
         recyclerView.adapter = albumAdapter
     }

@@ -25,9 +25,22 @@ class ViewPhotosActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.recyclerViewPhotos)
         recyclerView.layoutManager = GridLayoutManager(this, 3) // 3 columns
 
+        // Check if we're viewing a specific album or all photos
+        val albumName = intent.getStringExtra("ALBUM_NAME")
+
+        if (albumName != null) {
+            title = albumName
+        } else {
+            title = "All Photos"
+        }
+
         // Check for permission and load photos
         if (checkPermission()) {
-            loadPhotos()
+            if (albumName != null) {
+                loadAlbumPhotos(albumName)
+            } else {
+                loadAllPhotos()
+            }
         } else {
             requestPermission()
         }
@@ -35,13 +48,11 @@ class ViewPhotosActivity : AppCompatActivity() {
 
     private fun checkPermission(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Android 13+
             ContextCompat.checkSelfPermission(
                 this,
                 Manifest.permission.READ_MEDIA_IMAGES
             ) == PackageManager.PERMISSION_GRANTED
         } else {
-            // Android 12 and below
             ContextCompat.checkSelfPermission(
                 this,
                 Manifest.permission.READ_EXTERNAL_STORAGE
@@ -73,19 +84,25 @@ class ViewPhotosActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == PERMISSION_REQUEST_CODE) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                loadPhotos()
+                val albumName = intent.getStringExtra("ALBUM_NAME")
+                if (albumName != null) {
+                    loadAlbumPhotos(albumName)
+                } else {
+                    loadAllPhotos()
+                }
             } else {
                 Toast.makeText(this, "Permission denied. Cannot load photos.", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    private fun loadPhotos() {
+    private fun loadAlbumPhotos(albumName: String) {
         val photoList = mutableListOf<Uri>()
 
         val projection = arrayOf(
             MediaStore.Images.Media._ID,
-            MediaStore.Images.Media.DISPLAY_NAME
+            MediaStore.Images.Media.DISPLAY_NAME,
+            MediaStore.Images.Media.RELATIVE_PATH
         )
 
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
@@ -98,23 +115,72 @@ class ViewPhotosActivity : AppCompatActivity() {
             sortOrder
         )?.use { cursor ->
             val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+            val pathColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH)
 
             while (cursor.moveToNext()) {
-                val id = cursor.getLong(idColumn)
-                val contentUri = Uri.withAppendedPath(
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                    id.toString()
-                )
-                photoList.add(contentUri)
+                val path = cursor.getString(pathColumn) ?: ""
+
+                // Check if photo is in the specified album
+                if (path.contains("GQTPhotoApp/$albumName", ignoreCase = true)) {
+                    val id = cursor.getLong(idColumn)
+                    val contentUri = Uri.withAppendedPath(
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                        id.toString()
+                    )
+                    photoList.add(contentUri)
+                }
             }
         }
 
-        // Set up the adapter with photos
+        if (photoList.isEmpty()) {
+            Toast.makeText(this, "No photos in this album", Toast.LENGTH_SHORT).show()
+        }
+
         val adapter = PhotoAdapter(photoList)
         recyclerView.adapter = adapter
+    }
+
+    private fun loadAllPhotos() {
+        val photoList = mutableListOf<Uri>()
+
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DISPLAY_NAME,
+            MediaStore.Images.Media.RELATIVE_PATH
+        )
+
+        val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+
+        contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            null,
+            null,
+            sortOrder
+        )?.use { cursor ->
+            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+            val pathColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH)
+
+            while (cursor.moveToNext()) {
+                val path = cursor.getString(pathColumn) ?: ""
+
+                // Only include photos from GQTPhotoApp folder
+                if (path.contains("GQTPhotoApp", ignoreCase = true)) {
+                    val id = cursor.getLong(idColumn)
+                    val contentUri = Uri.withAppendedPath(
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                        id.toString()
+                    )
+                    photoList.add(contentUri)
+                }
+            }
+        }
 
         if (photoList.isEmpty()) {
-            Toast.makeText(this, "No photos found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "No photos found. Take some photos first!", Toast.LENGTH_SHORT).show()
         }
+
+        val adapter = PhotoAdapter(photoList)
+        recyclerView.adapter = adapter
     }
 }
