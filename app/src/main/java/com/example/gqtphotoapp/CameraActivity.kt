@@ -80,11 +80,13 @@ class CameraActivity : AppCompatActivity() {
 
     private fun createImageUri(): Uri? {
         return try {
-            // Get the next number for this label
-            val photoNumber = getNextPhotoNumber(photoLabel ?: "Photo")
+            val label = photoLabel ?: "Photo"
 
-            // Create filename with label and number
-            val imageFileName = "${photoLabel ?: "Photo"} ($photoNumber).jpg"
+            // Get the next number for this label
+            val photoNumber = getNextPhotoNumber(label)
+
+            // Generate abbreviated filename using PhotoLists
+            val imageFileName = PhotoLists.getPhotoFilename(label, photoNumber)
 
             // Determine the path based on whether an album is selected
             val relativePath = if (selectedAlbum != null) {

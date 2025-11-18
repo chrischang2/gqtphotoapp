@@ -27,6 +27,66 @@ object PhotoLists {
         }
     }
 
+    // Filename mapping for photo categories
+    private val filenameMap = mapOf(
+        "Container List" to "Container List",
+        "Overview" to "OV",
+        "Close View" to "CV",
+        "Radiation background" to "1",
+        "Radiation towards bales" to "R",
+        "Moisture Level" to "M",
+        "Sample Bale Weight" to "BW",
+        "Scale Cert" to "Scale Cert",
+        "Scale S/N" to "Scale S/N",
+        "Sample Bale on ground/scale" to "BL",
+        "Selfie with Sample Bale" to "BLS",
+        "Loosed Sample Bale" to "SG",
+        "Selfie with Loosed Sample Bale" to "SGS",
+        "Non-Paper Component Findings" to "NP",
+        "Selfie with Non-Paper Component Findings" to "NPS",
+        "Non-Paper component weights" to "NPW",
+        "Total Unwanted Material Findings" to "TUM",
+        "Selfie with Total Unwanted Material Findings" to "TUMS",
+        "Total Unwanted Material Weights" to "TUMW",
+        "Empty Container" to "Empty Container",
+        "Selfie with Loading Container" to "Selfie with Loading Container"
+    )
+
+    /**
+     * Generate filename for a photo based on its category label and index
+     * @param categoryLabel The label of the photo category
+     * @param photoIndex The index of the photo within that category (1-based)
+     * @param extension File extension (defaults to "jpg")
+     * @return The filename to use when saving the photo
+     */
+    fun getPhotoFilename(categoryLabel: String, photoIndex: Int, extension: String = "jpg"): String {
+        // Check if it's a container-specific category
+        val containerPattern = Regex("""Container (\d+) - (.+)""")
+        val containerMatch = containerPattern.find(categoryLabel)
+
+        if (containerMatch != null) {
+            val containerNum = containerMatch.groupValues[1]
+            val containerAction = containerMatch.groupValues[2]
+
+            val actionCode = when (containerAction) {
+                "Full Loaded" -> "FL"
+                "Selfie with Full Loaded" -> "FLS"
+                "Closed" -> "CL"
+                "Selfie with Closed" -> "CLS"
+                "Seal" -> "SEAL"
+                else -> containerAction
+            }
+
+            return "C${containerNum}_${actionCode} (${photoIndex}).${extension}"
+        }
+
+        // Use the mapping for standard categories
+        val baseFilename = filenameMap[categoryLabel] ?: categoryLabel
+
+        // Add enumeration for photos requiring multiple captures
+        return "${baseFilename} (${photoIndex}).${extension}"
+    }
+
     // Generate paper photo categories based on num_sample_containers
     fun getPaperPhotoCategories(numSampleContainers: Int): List<PhotoCategory> {
         val numSampleBales = numSampleContainers * 2
@@ -36,8 +96,8 @@ object PhotoLists {
             PhotoCategory("Overview", minCount = 3),
             PhotoCategory("Close View", minCount = 2),
             PhotoCategory("Radiation background", minCount = 1),
-            PhotoCategory("Radiation", minCount = numSampleContainers),
-            PhotoCategory("Moisture", minCount = numSampleBales),
+            PhotoCategory("Radiation towards bales", minCount = numSampleContainers),
+            PhotoCategory("Moisture Level", minCount = numSampleBales),
             PhotoCategory("Sample Bale Weight", minCount = numSampleBales),
             PhotoCategory("Scale Cert", minCount = 1),
             PhotoCategory("Scale S/N", minCount = 1),
@@ -111,3 +171,20 @@ fun getList(name: String): List<String> {
     val categories = PhotoLists.getPaperPhotoCategories(2)
     return categories.map { it.label }
 }
+
+// Example usage:
+/*
+// When saving a photo:
+val categoryLabel = "Overview"
+val photoIndex = 2  // Second photo of this category
+val filename = PhotoLists.getPhotoFilename(categoryLabel, photoIndex)
+// Result: "OV_2.jpg"
+
+val containerLabel = "Container 3 - Seal"
+val filename2 = PhotoLists.getPhotoFilename(containerLabel, 1)
+// Result: "C3_SE_1.jpg"
+
+// With custom extension
+val filename3 = PhotoLists.getPhotoFilename("Moisture Level", 1, "png")
+// Result: "M_1.png"
+*/
