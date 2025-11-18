@@ -26,43 +26,7 @@ class CameraActivity : AppCompatActivity() {
     // Sequence mode variables
     private var isSequenceMode = false
     private var currentPhotoNumber = 1
-    private var totalPhotos = PHOTO_LABELS.size
-
-    companion object {
-        // Custom photo sequence labels
-        val PHOTO_LABELS = listOf(
-            "Overview 1", "Overview 2", "Overview 3",
-            "C 1", "C 2",
-            "Radiation background",
-            "Radiation 1", "Radiation 2", "Radiation 3",
-            "Moisture 1", "Moisture 2", "Moisture 3", "Moisture 4", "Moisture 5", "Moisture 6",
-            "Sample Bale Weight 1", "Sample Bale Weight 2", "Sample Bale Weight 3",
-            "Sample Bale Weight 4", "Sample Bale Weight 5", "Sample Bale Weight 6",
-            "Sample Bale on ground/scale 1", "Sample Bale on ground/scale 2", "Sample Bale on ground/scale 3",
-            "Sample Bale on ground/scale 4", "Sample Bale on ground/scale 5", "Sample Bale on ground/scale 6",
-            "Selfie with Sample Bale",
-            "Loosed Sample Bale 1", "Loosed Sample Bale 2", "Loosed Sample Bale 3",
-            "Loosed Sample Bale 4", "Loosed Sample Bale 5", "Loosed Sample Bale 6",
-            "Selfie with Loosed Sample Bale",
-            "Non-Paper Component Findings",
-            "Selfie with Non-Paper Component Findings",
-            "Non-Paper component weights 1", "Non-Paper component weights 2", "Non-Paper component weights 3",
-            "Non-Paper component weights 4", "Non-Paper component weights 5", "Non-Paper component weights 6",
-            "Total Unwanted Material Findings",
-            "Total Unwanted Material Weights 1", "Total Unwanted Material Weights 2", "Total Unwanted Material Weights 3",
-            "Total Unwanted Material Weights 4", "Total Unwanted Material Weights 5", "Total Unwanted Material Weights 6",
-            "Selfie with Total Unwanted Material Findings 1", "Selfie with Total Unwanted Material Findings 2",
-            "Selfie with Total Unwanted Material Findings 3", "Selfie with Total Unwanted Material Findings 4",
-            "Selfie with Total Unwanted Material Findings 5", "Selfie with Total Unwanted Material Findings 6",
-            "Empty Container",
-            "Selfie with Loading Container",
-            "Full-Loaded Container 1", "Full-Loaded Container 2", "Full-Loaded Container 3",
-            "Selfie with Full Loaded Container 1", "Selfie with Full Loaded Container 2", "Selfie with Full Loaded Container 3",
-            "Closed Container 1", "Closed Container 2", "Closed Container 3",
-            "Selfie with Closed Container 1", "Selfie with Closed Container 2", "Selfie with Closed Container 3",
-            "Seal 1", "Seal 2", "Seal 3"
-        )
-    }
+    private var photoLabels: List<String> = emptyList()
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -74,18 +38,21 @@ class CameraActivity : AppCompatActivity() {
         // Get sequence mode settings from intent
         isSequenceMode = intent.getBooleanExtra("SEQUENCE_MODE", false)
         currentPhotoNumber = intent.getIntExtra("CURRENT_NUMBER", 1)
-        totalPhotos = intent.getIntExtra("TOTAL_PHOTOS", PHOTO_LABELS.size)
+
+        // Get the photo labels list from the intent
+        val labelsArray = intent.getStringArrayExtra("PHOTO_LABELS")
+        photoLabels = labelsArray?.toList() ?: emptyList()
 
         // Show user which photo they're about to take
         if (isSequenceMode) {
-            val photoLabel = if (currentPhotoNumber <= PHOTO_LABELS.size) {
-                PHOTO_LABELS[currentPhotoNumber - 1]
+            val photoLabel = if (currentPhotoNumber <= photoLabels.size) {
+                photoLabels[currentPhotoNumber - 1]
             } else {
                 "Photo $currentPhotoNumber"
             }
             Toast.makeText(
                 this,
-                "Taking: $photoLabel ($currentPhotoNumber of $totalPhotos)",
+                "Taking: $photoLabel ($currentPhotoNumber of ${photoLabels.size})",
                 Toast.LENGTH_LONG
             ).show()
         }
@@ -171,18 +138,9 @@ class CameraActivity : AppCompatActivity() {
         if (requestCode == CAMERA_REQUEST_CODE) {
             if (resultCode == RESULT_OK) {
                 currentPhotoUri?.let { uri ->
-//                    val message = if (isSequenceMode) {
-//                        "Photo $currentPhotoNumber saved!"
-//                    } else if (selectedAlbum != null) {
-//                        "Photo saved to '$selectedAlbum' album!"
-//                    } else {
-//                        "Photo saved successfully!"
-//                    }
-//                    Log.d("CameraActivity", "Photo saved successfully at: $uri")
-//                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
 
                     // If in sequence mode, save progress and continue to next photo
-                    if (isSequenceMode && currentPhotoNumber < totalPhotos) {
+                    if (isSequenceMode && currentPhotoNumber < photoLabels.size) {
                         currentPhotoNumber++
 
                         // Save progress to SharedPreferences
@@ -193,11 +151,11 @@ class CameraActivity : AppCompatActivity() {
                             putExtra("ALBUM_NAME", selectedAlbum)
                             putExtra("SEQUENCE_MODE", true)
                             putExtra("CURRENT_NUMBER", currentPhotoNumber)
-                            putExtra("TOTAL_PHOTOS", totalPhotos)
+                            putExtra("PHOTO_LABELS", photoLabels.toTypedArray())
                         }
                         startActivity(intent)
-                    } else if (isSequenceMode && currentPhotoNumber >= totalPhotos) {
-                        Toast.makeText(this, "All $totalPhotos photos taken! ✓", Toast.LENGTH_LONG).show()
+                    } else if (isSequenceMode && currentPhotoNumber >= photoLabels.size) {
+                        Toast.makeText(this, "All ${photoLabels.size} photos taken! ✓", Toast.LENGTH_LONG).show()
                         // Clear sequence progress when complete
                         clearSequenceProgress()
                     }
@@ -214,8 +172,8 @@ class CameraActivity : AppCompatActivity() {
                 // Save progress even when cancelled so user can resume
                 if (isSequenceMode) {
                     saveSequenceProgress()
-                    val photoLabel = if (currentPhotoNumber <= PHOTO_LABELS.size) {
-                        PHOTO_LABELS[currentPhotoNumber - 1]
+                    val photoLabel = if (currentPhotoNumber <= photoLabels.size) {
+                        photoLabels[currentPhotoNumber - 1]
                     } else {
                         "Photo $currentPhotoNumber"
                     }
@@ -234,11 +192,12 @@ class CameraActivity : AppCompatActivity() {
         sharedPrefs.edit().apply {
             putBoolean("sequence_in_progress", true)
             putInt("sequence_current_number", currentPhotoNumber)
-            putInt("sequence_total_photos", totalPhotos)
             putString("sequence_album", selectedAlbum)
+            // Save the photo labels as a string set (converting list to set)
+            putStringSet("sequence_photo_labels", photoLabels.toSet())
             apply()
         }
-        Log.d("CameraActivity", "Saved sequence progress: $currentPhotoNumber of $totalPhotos")
+        Log.d("CameraActivity", "Saved sequence progress: $currentPhotoNumber of ${photoLabels.size}")
     }
 
     private fun clearSequenceProgress() {
@@ -246,8 +205,8 @@ class CameraActivity : AppCompatActivity() {
         sharedPrefs.edit().apply {
             remove("sequence_in_progress")
             remove("sequence_current_number")
-            remove("sequence_total_photos")
             remove("sequence_album")
+            remove("sequence_photo_labels")
             apply()
         }
         Log.d("CameraActivity", "Cleared sequence progress")

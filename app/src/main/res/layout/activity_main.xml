@@ -1,97 +1,235 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp"
-    tools:context=".MainActivity">
+    android:fitsSystemWindows="true">
 
-    <!-- Add Album Button at the top -->
-    <Button
-        android:id="@+id/btnAddAlbum"
-        android:layout_width="0dp"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Add Album"
-        android:textSize="18sp"
         android:padding="16dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/btnOpenCamera"
-        app:layout_constraintVertical_chainStyle="packed" />
+        tools:context=".MainActivity">
 
-    <Button
-        android:id="@+id/btnChangeAlbum"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="Change Album"
-        android:textSize="18sp"
-        android:padding="16dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/btnOpenCamera"
-        app:layout_constraintVertical_chainStyle="packed" />
+        <!-- Product Type Selection Label -->
+        <TextView
+            android:id="@+id/tvProductTypeLabel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Select Product Type:"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
-    <Button
-        android:id="@+id/btnOpenCamera"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="Open Camera"
-        android:textSize="18sp"
-        android:layout_marginTop="16dp"
-        app:layout_constraintTop_toBottomOf="@id/btnAddAlbum"
-        app:layout_constraintBottom_toTopOf="@id/btnViewPhotos"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        <!-- Product Type RadioGroup -->
+        <RadioGroup
+            android:id="@+id/rgProductType"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal"
+            app:layout_constraintTop_toBottomOf="@id/tvProductTypeLabel"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
 
-    <Button
-        android:id="@+id/btnViewPhotos"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="View Photos"
-        android:textSize="18sp"
-        android:layout_marginTop="16dp"
-        app:layout_constraintTop_toBottomOf="@id/btnOpenCamera"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/btnViewAlbums" />
+            <RadioButton
+                android:id="@+id/rbOCC"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="OCC"
+                android:checked="true" />
 
-    <Button
-        android:id="@+id/btnViewAlbums"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="View Albums"
-        android:textSize="18sp"
-        android:layout_marginTop="16dp"
-        app:layout_constraintTop_toBottomOf="@id/btnViewPhotos"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/btnLabelPhoto" />
+            <RadioButton
+                android:id="@+id/rbSPRN"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="SPRN" />
 
-    <Button
-        android:id="@+id/btnLabelPhoto"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="Label Photo"
-        android:textSize="18sp"
-        android:layout_marginTop="16dp"
-        app:layout_constraintTop_toBottomOf="@id/btnViewAlbums"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/btnSettings" />
+            <RadioButton
+                android:id="@+id/rbAluminium"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Aluminium" />
+        </RadioGroup>
 
-    <Button
-        android:id="@+id/btnSettings"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="Settings"
-        android:textSize="18sp"
-        android:layout_marginTop="16dp"
-        app:layout_constraintTop_toBottomOf="@id/btnLabelPhoto"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        <!-- Number of Containers Label -->
+        <TextView
+            android:id="@+id/tvNumContainersLabel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Number of Containers:"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="24dp"
+            app:layout_constraintTop_toBottomOf="@id/rgProductType"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <!-- Number of Containers Input -->
+        <EditText
+            android:id="@+id/etNumContainers"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Enter number of containers"
+            android:inputType="number"
+            android:minHeight="48dp"
+            android:layout_marginTop="8dp"
+            app:layout_constraintTop_toBottomOf="@id/tvNumContainersLabel"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Sample Code Display -->
+        <TextView
+            android:id="@+id/tvSampleCodeLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Sample Code:"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"
+            app:layout_constraintTop_toBottomOf="@id/etNumContainers"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <TextView
+            android:id="@+id/tvSampleCode"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="--"
+            android:textSize="20sp"
+            android:textColor="#2196F3"
+            android:textStyle="bold"
+            android:layout_marginStart="8dp"
+            app:layout_constraintTop_toTopOf="@id/tvSampleCodeLabel"
+            app:layout_constraintBottom_toBottomOf="@id/tvSampleCodeLabel"
+            app:layout_constraintStart_toEndOf="@id/tvSampleCodeLabel"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Sample Containers Display -->
+        <TextView
+            android:id="@+id/tvSampleContainersLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Sample Containers:"
+            android:textSize="14sp"
+            android:layout_marginTop="8dp"
+            app:layout_constraintTop_toBottomOf="@id/tvSampleCodeLabel"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <TextView
+            android:id="@+id/tvSampleContainers"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="--"
+            android:textSize="14sp"
+            android:layout_marginStart="8dp"
+            app:layout_constraintTop_toTopOf="@id/tvSampleContainersLabel"
+            app:layout_constraintBottom_toBottomOf="@id/tvSampleContainersLabel"
+            app:layout_constraintStart_toEndOf="@id/tvSampleContainersLabel"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Divider -->
+        <View
+            android:id="@+id/divider"
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:background="?android:attr/listDivider"
+            android:layout_marginTop="24dp"
+            app:layout_constraintTop_toBottomOf="@id/tvSampleContainersLabel"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Add Album Button -->
+        <Button
+            android:id="@+id/btnAddAlbum"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Add Album"
+            android:textSize="18sp"
+            android:padding="16dp"
+            android:layout_marginTop="24dp"
+            app:layout_constraintTop_toBottomOf="@id/divider"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Change Album Button -->
+        <Button
+            android:id="@+id/btnChangeAlbum"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Change Album"
+            android:textSize="18sp"
+            android:padding="16dp"
+            android:layout_marginTop="16dp"
+            app:layout_constraintTop_toBottomOf="@id/btnAddAlbum"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Open Camera Button -->
+        <Button
+            android:id="@+id/btnOpenCamera"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Open Camera"
+            android:textSize="18sp"
+            android:layout_marginTop="16dp"
+            app:layout_constraintTop_toBottomOf="@id/btnChangeAlbum"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <!-- View Photos Button -->
+        <Button
+            android:id="@+id/btnViewPhotos"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="View Photos"
+            android:textSize="18sp"
+            android:layout_marginTop="16dp"
+            app:layout_constraintTop_toBottomOf="@id/btnOpenCamera"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- View Albums Button -->
+        <Button
+            android:id="@+id/btnViewAlbums"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="View Albums"
+            android:textSize="18sp"
+            android:layout_marginTop="16dp"
+            app:layout_constraintTop_toBottomOf="@id/btnViewPhotos"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Label Photo Button -->
+        <Button
+            android:id="@+id/btnLabelPhoto"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Label Photo"
+            android:textSize="18sp"
+            android:layout_marginTop="16dp"
+            app:layout_constraintTop_toBottomOf="@id/btnViewAlbums"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Settings Button -->
+        <Button
+            android:id="@+id/btnSettings"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Settings"
+            android:textSize="18sp"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="16dp"
+            app:layout_constraintTop_toBottomOf="@id/btnLabelPhoto"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>
