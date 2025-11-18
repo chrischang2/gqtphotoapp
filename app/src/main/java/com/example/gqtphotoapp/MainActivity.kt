@@ -5,7 +5,9 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.View
 import android.widget.*
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -75,9 +77,9 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        // Open Camera button - shows dialog to choose mode
+        // Open Camera button - shows photo label selection dialog
         btnOpenCamera.setOnClickListener {
-            checkAndResumeSequence()
+            showPhotoLabelSelectionDialog()
         }
     }
 
@@ -166,132 +168,49 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // Single photo mode (your original behavior)
-    private fun openCameraSingle() {
-        val sharedPrefs = getSharedPreferences("GQTPhotoApp", Context.MODE_PRIVATE)
-        val lastAlbum = sharedPrefs.getString("last_selected_album", null)
+    private fun showPhotoLabelSelectionDialog() {
+        val photoCategories = getCurrentPhotoCategories()
 
-        val intent = Intent(this, CameraActivity::class.java)
-        lastAlbum?.let {
-            intent.putExtra("ALBUM_NAME", it)
+        if (photoCategories.isEmpty()) {
+            Toast.makeText(this, "Please enter number of containers first", Toast.LENGTH_SHORT).show()
+            return
         }
-        startActivity(intent)
+
+        // Create custom dialog with spinner
+        val dialogView = layoutInflater.inflate(R.layout.dialog_select_photo_label, null)
+        val spinner = dialogView.findViewById<Spinner>(R.id.spinnerPhotoLabel)
+
+        // Get photo labels
+        val photoLabels = photoCategories.map { it.label }
+
+        // Setup spinner adapter
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, photoLabels)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinner.adapter = adapter
+
+        AlertDialog.Builder(this)
+            .setTitle("Select Photo Type")
+            .setView(dialogView)
+            .setPositiveButton("Take Photo") { _, _ ->
+                val selectedPosition = spinner.selectedItemPosition
+                val selectedLabel = photoLabels[selectedPosition]
+                openCameraWithLabel(selectedLabel)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
-    // Sequence mode (new)
-    private fun openCameraSequence() {
+    private fun openCameraWithLabel(photoLabel: String) {
         val sharedPrefs = getSharedPreferences("GQTPhotoApp", Context.MODE_PRIVATE)
         val lastAlbum = sharedPrefs.getString("last_selected_album", null)
-
-        // Get the photo categories based on current settings
-        val photoCategories = getCurrentPhotoCategories()
-        val photoLabels = photoCategories.map { it.label }
 
         val intent = Intent(this, CameraActivity::class.java).apply {
             lastAlbum?.let {
                 putExtra("ALBUM_NAME", it)
             }
-            putExtra("SEQUENCE_MODE", true)
-            putExtra("CURRENT_NUMBER", 1)
-            putExtra("PHOTO_LABELS", photoLabels.toTypedArray())
+            putExtra("PHOTO_LABEL", photoLabel)
         }
         startActivity(intent)
-
-        val sampleCodeStr = when (selectedSampleCode) {
-            PhotoLists.SampleCode.II_A -> "II-A"
-            PhotoLists.SampleCode.II_B -> "II-B"
-            PhotoLists.SampleCode.II_C -> "II-C"
-            PhotoLists.SampleCode.II_D -> "II-D"
-        }
-
-        Toast.makeText(
-            this,
-            "Starting sequence: $sampleCodeStr (${photoLabels.size} photos)",
-            Toast.LENGTH_SHORT
-        ).show()
-    }
-
-    private fun checkAndResumeSequence() {
-        val sharedPrefs = getSharedPreferences("GQTPhotoApp", Context.MODE_PRIVATE)
-        val sequenceInProgress = sharedPrefs.getBoolean("sequence_in_progress", false)
-
-        if (sequenceInProgress) {
-            val currentNumber = sharedPrefs.getInt("sequence_current_number", 1)
-            val sequenceAlbum = sharedPrefs.getString("sequence_album", null)
-
-            // Get saved photo labels or use current selection
-            val savedLabelsSet = sharedPrefs.getStringSet("sequence_photo_labels", null)
-            val photoLabels = if (savedLabelsSet != null) {
-                savedLabelsSet.toList()
-            } else {
-                getCurrentPhotoCategories().map { it.label }
-            }
-
-            // Show dialog to resume or start new
-            android.app.AlertDialog.Builder(this)
-                .setTitle("Resume Sequence?")
-                .setMessage("You have a sequence in progress: Photo $currentNumber of ${photoLabels.size}\n\nWhat would you like to do?")
-                .setPositiveButton("Resume") { _, _ ->
-                    resumeSequence(currentNumber, photoLabels, sequenceAlbum)
-                }
-                .setNegativeButton("Start New") { _, _ ->
-                    // Clear old sequence and show camera mode dialog
-                    clearSequenceProgress()
-                    showCameraModeDialog()
-                }
-                .setNeutralButton("Cancel", null)
-                .show()
-        } else {
-            // No sequence in progress, show normal camera mode dialog
-            showCameraModeDialog()
-        }
-    }
-
-    private fun showCameraModeDialog() {
-        val photoCategories = getCurrentPhotoCategories()
-        val photoCount = photoCategories.size
-
-        val sampleCodeStr = when (selectedSampleCode) {
-            PhotoLists.SampleCode.II_A -> "II-A"
-            PhotoLists.SampleCode.II_B -> "II-B"
-            PhotoLists.SampleCode.II_C -> "II-C"
-            PhotoLists.SampleCode.II_D -> "II-D"
-        }
-
-        android.app.AlertDialog.Builder(this)
-            .setTitle("Camera Mode")
-            .setMessage("Choose camera mode:")
-            .setPositiveButton("Single Photo") { _, _ ->
-                openCameraSingle()
-            }
-            .setNegativeButton("Sequence ($sampleCodeStr: $photoCount photos)") { _, _ ->
-                openCameraSequence()
-            }
-            .setNeutralButton("Cancel", null)
-            .show()
-    }
-
-    private fun resumeSequence(currentNumber: Int, photoLabels: List<String>, albumName: String?) {
-        val intent = Intent(this, CameraActivity::class.java).apply {
-            albumName?.let {
-                putExtra("ALBUM_NAME", it)
-            }
-            putExtra("SEQUENCE_MODE", true)
-            putExtra("CURRENT_NUMBER", currentNumber)
-            putExtra("PHOTO_LABELS", photoLabels.toTypedArray())
-        }
-        startActivity(intent)
-    }
-
-    private fun clearSequenceProgress() {
-        val sharedPrefs = getSharedPreferences("GQTPhotoApp", Context.MODE_PRIVATE)
-        sharedPrefs.edit().apply {
-            remove("sequence_in_progress")
-            remove("sequence_current_number")
-            remove("sequence_album")
-            remove("sequence_photo_labels")
-            apply()
-        }
     }
 
     private fun viewPhotos() {

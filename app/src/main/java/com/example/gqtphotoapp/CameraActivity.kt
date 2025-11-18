@@ -22,12 +22,7 @@ class CameraActivity : AppCompatActivity() {
     private val CAMERA_PERMISSION_CODE = 101
     private var currentPhotoUri: Uri? = null
     private var selectedAlbum: String? = null
-
-    // Sequence mode variables
-    private var isSequenceMode = false
-    private var currentPhotoNumber = 1
-    private var photoLabels: List<String> = emptyList()
-
+    private var photoLabel: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,26 +30,12 @@ class CameraActivity : AppCompatActivity() {
         // Get selected album from intent
         selectedAlbum = intent.getStringExtra("ALBUM_NAME")
 
-        // Get sequence mode settings from intent
-        isSequenceMode = intent.getBooleanExtra("SEQUENCE_MODE", false)
-        currentPhotoNumber = intent.getIntExtra("CURRENT_NUMBER", 1)
+        // Get photo label from intent
+        photoLabel = intent.getStringExtra("PHOTO_LABEL")
 
-        // Get the photo labels list from the intent
-        val labelsArray = intent.getStringArrayExtra("PHOTO_LABELS")
-        photoLabels = labelsArray?.toList() ?: emptyList()
-
-        // Show user which photo they're about to take
-        if (isSequenceMode) {
-            val photoLabel = if (currentPhotoNumber <= photoLabels.size) {
-                photoLabels[currentPhotoNumber - 1]
-            } else {
-                "Photo $currentPhotoNumber"
-            }
-            Toast.makeText(
-                this,
-                "Taking: $photoLabel ($currentPhotoNumber of ${photoLabels.size})",
-                Toast.LENGTH_LONG
-            ).show()
+        // Show user which photo type they're taking
+        photoLabel?.let {
+            Toast.makeText(this, "Taking: $it", Toast.LENGTH_SHORT).show()
         }
 
         checkCameraPermission()
@@ -98,14 +79,11 @@ class CameraActivity : AppCompatActivity() {
 
     private fun createImageUri(): Uri? {
         return try {
-            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+            // Get the next number for this label
+            val photoNumber = getNextPhotoNumber(photoLabel ?: "Photo")
 
-            // Create filename with sequence number if in sequence mode
-            val imageFileName = if (isSequenceMode) {
-                "Photo_${currentPhotoNumber}_${timeStamp}.jpg"
-            } else {
-                "JPEG_${timeStamp}.jpg"
-            }
+            // Create filename with label and number
+            val imageFileName = "${photoLabel ?: "Photo"} ($photoNumber).jpg"
 
             // Determine the path based on whether an album is selected
             val relativePath = if (selectedAlbum != null) {
@@ -123,7 +101,7 @@ class CameraActivity : AppCompatActivity() {
             }
 
             val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-            Log.d("CameraActivity", "Created URI in album '$selectedAlbum': $uri")
+            Log.d("CameraActivity", "Created URI with filename '$imageFileName' in album '$selectedAlbum': $uri")
             uri
         } catch (e: Exception) {
             Log.e("CameraActivity", "Error creating image URI", e)
@@ -138,27 +116,17 @@ class CameraActivity : AppCompatActivity() {
         if (requestCode == CAMERA_REQUEST_CODE) {
             if (resultCode == RESULT_OK) {
                 currentPhotoUri?.let { uri ->
+                    // Increment the counter for this label
+                    incrementPhotoNumber(photoLabel ?: "Photo")
 
-                    // If in sequence mode, save progress and continue to next photo
-                    if (isSequenceMode && currentPhotoNumber < photoLabels.size) {
-                        currentPhotoNumber++
+                    val photoNumber = getCurrentPhotoNumber(photoLabel ?: "Photo")
+                    Toast.makeText(
+                        this,
+                        "Saved: ${photoLabel ?: "Photo"} ($photoNumber)",
+                        Toast.LENGTH_SHORT
+                    ).show()
 
-                        // Save progress to SharedPreferences
-                        saveSequenceProgress()
-
-                        // Restart camera for next photo
-                        val intent = Intent(this, CameraActivity::class.java).apply {
-                            putExtra("ALBUM_NAME", selectedAlbum)
-                            putExtra("SEQUENCE_MODE", true)
-                            putExtra("CURRENT_NUMBER", currentPhotoNumber)
-                            putExtra("PHOTO_LABELS", photoLabels.toTypedArray())
-                        }
-                        startActivity(intent)
-                    } else if (isSequenceMode && currentPhotoNumber >= photoLabels.size) {
-                        Toast.makeText(this, "All ${photoLabels.size} photos taken! ✓", Toast.LENGTH_LONG).show()
-                        // Clear sequence progress when complete
-                        clearSequenceProgress()
-                    }
+                    Log.d("CameraActivity", "Photo saved successfully")
                 } ?: run {
                     Log.e("CameraActivity", "Photo URI is null")
                     Toast.makeText(this, "Error: Photo not saved", Toast.LENGTH_SHORT).show()
@@ -168,48 +136,30 @@ class CameraActivity : AppCompatActivity() {
                     contentResolver.delete(uri, null, null)
                     Log.d("CameraActivity", "Deleted cancelled photo entry")
                 }
-
-                // Save progress even when cancelled so user can resume
-                if (isSequenceMode) {
-                    saveSequenceProgress()
-                    val photoLabel = if (currentPhotoNumber <= photoLabels.size) {
-                        photoLabels[currentPhotoNumber - 1]
-                    } else {
-                        "Photo $currentPhotoNumber"
-                    }
-                    val message = "Sequence paused at: $photoLabel"
-                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this, "Photo capture cancelled", Toast.LENGTH_SHORT).show()
-                }
+                Toast.makeText(this, "Photo capture cancelled", Toast.LENGTH_SHORT).show()
             }
             finish()
         }
     }
 
-    private fun saveSequenceProgress() {
+    private fun getNextPhotoNumber(label: String): Int {
         val sharedPrefs = getSharedPreferences("GQTPhotoApp", MODE_PRIVATE)
-        sharedPrefs.edit().apply {
-            putBoolean("sequence_in_progress", true)
-            putInt("sequence_current_number", currentPhotoNumber)
-            putString("sequence_album", selectedAlbum)
-            // Save the photo labels as a string set (converting list to set)
-            putStringSet("sequence_photo_labels", photoLabels.toSet())
-            apply()
-        }
-        Log.d("CameraActivity", "Saved sequence progress: $currentPhotoNumber of ${photoLabels.size}")
+        val key = "photo_count_${selectedAlbum}_$label"
+        return sharedPrefs.getInt(key, 0) + 1
     }
 
-    private fun clearSequenceProgress() {
+    private fun getCurrentPhotoNumber(label: String): Int {
         val sharedPrefs = getSharedPreferences("GQTPhotoApp", MODE_PRIVATE)
-        sharedPrefs.edit().apply {
-            remove("sequence_in_progress")
-            remove("sequence_current_number")
-            remove("sequence_album")
-            remove("sequence_photo_labels")
-            apply()
-        }
-        Log.d("CameraActivity", "Cleared sequence progress")
+        val key = "photo_count_${selectedAlbum}_$label"
+        return sharedPrefs.getInt(key, 0)
+    }
+
+    private fun incrementPhotoNumber(label: String) {
+        val sharedPrefs = getSharedPreferences("GQTPhotoApp", MODE_PRIVATE)
+        val key = "photo_count_${selectedAlbum}_$label"
+        val currentCount = sharedPrefs.getInt(key, 0)
+        sharedPrefs.edit().putInt(key, currentCount + 1).apply()
+        Log.d("CameraActivity", "Incremented count for '$label' to ${currentCount + 1}")
     }
 
     override fun onRequestPermissionsResult(
