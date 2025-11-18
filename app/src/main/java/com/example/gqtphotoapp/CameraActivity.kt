@@ -22,48 +22,7 @@ class CameraActivity : AppCompatActivity() {
     private val CAMERA_PERMISSION_CODE = 101
     private var currentPhotoUri: Uri? = null
     private var selectedAlbum: String? = null
-
-    // Sequence mode variables
-    private var isSequenceMode = false
-    private var currentPhotoNumber = 1
-    private var totalPhotos = PHOTO_LABELS.size
-
-    companion object {
-        // Custom photo sequence labels
-        val PHOTO_LABELS = listOf(
-            "Overview 1", "Overview 2", "Overview 3",
-            "C 1", "C 2",
-            "Radiation background",
-            "Radiation 1", "Radiation 2", "Radiation 3",
-            "Moisture 1", "Moisture 2", "Moisture 3", "Moisture 4", "Moisture 5", "Moisture 6",
-            "Sample Bale Weight 1", "Sample Bale Weight 2", "Sample Bale Weight 3",
-            "Sample Bale Weight 4", "Sample Bale Weight 5", "Sample Bale Weight 6",
-            "Sample Bale on ground/scale 1", "Sample Bale on ground/scale 2", "Sample Bale on ground/scale 3",
-            "Sample Bale on ground/scale 4", "Sample Bale on ground/scale 5", "Sample Bale on ground/scale 6",
-            "Selfie with Sample Bale",
-            "Loosed Sample Bale 1", "Loosed Sample Bale 2", "Loosed Sample Bale 3",
-            "Loosed Sample Bale 4", "Loosed Sample Bale 5", "Loosed Sample Bale 6",
-            "Selfie with Loosed Sample Bale",
-            "Non-Paper Component Findings",
-            "Selfie with Non-Paper Component Findings",
-            "Non-Paper component weights 1", "Non-Paper component weights 2", "Non-Paper component weights 3",
-            "Non-Paper component weights 4", "Non-Paper component weights 5", "Non-Paper component weights 6",
-            "Total Unwanted Material Findings",
-            "Total Unwanted Material Weights 1", "Total Unwanted Material Weights 2", "Total Unwanted Material Weights 3",
-            "Total Unwanted Material Weights 4", "Total Unwanted Material Weights 5", "Total Unwanted Material Weights 6",
-            "Selfie with Total Unwanted Material Findings 1", "Selfie with Total Unwanted Material Findings 2",
-            "Selfie with Total Unwanted Material Findings 3", "Selfie with Total Unwanted Material Findings 4",
-            "Selfie with Total Unwanted Material Findings 5", "Selfie with Total Unwanted Material Findings 6",
-            "Empty Container",
-            "Selfie with Loading Container",
-            "Full-Loaded Container 1", "Full-Loaded Container 2", "Full-Loaded Container 3",
-            "Selfie with Full Loaded Container 1", "Selfie with Full Loaded Container 2", "Selfie with Full Loaded Container 3",
-            "Closed Container 1", "Closed Container 2", "Closed Container 3",
-            "Selfie with Closed Container 1", "Selfie with Closed Container 2", "Selfie with Closed Container 3",
-            "Seal 1", "Seal 2", "Seal 3"
-        )
-    }
-
+    private var photoLabel: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,23 +30,12 @@ class CameraActivity : AppCompatActivity() {
         // Get selected album from intent
         selectedAlbum = intent.getStringExtra("ALBUM_NAME")
 
-        // Get sequence mode settings from intent
-        isSequenceMode = intent.getBooleanExtra("SEQUENCE_MODE", false)
-        currentPhotoNumber = intent.getIntExtra("CURRENT_NUMBER", 1)
-        totalPhotos = intent.getIntExtra("TOTAL_PHOTOS", PHOTO_LABELS.size)
+        // Get photo label from intent
+        photoLabel = intent.getStringExtra("PHOTO_LABEL")
 
-        // Show user which photo they're about to take
-        if (isSequenceMode) {
-            val photoLabel = if (currentPhotoNumber <= PHOTO_LABELS.size) {
-                PHOTO_LABELS[currentPhotoNumber - 1]
-            } else {
-                "Photo $currentPhotoNumber"
-            }
-            Toast.makeText(
-                this,
-                "Taking: $photoLabel ($currentPhotoNumber of $totalPhotos)",
-                Toast.LENGTH_LONG
-            ).show()
+        // Show user which photo type they're taking
+        photoLabel?.let {
+            Toast.makeText(this, "Taking: $it", Toast.LENGTH_SHORT).show()
         }
 
         checkCameraPermission()
@@ -95,7 +43,8 @@ class CameraActivity : AppCompatActivity() {
 
     private fun checkCameraPermission() {
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA)
-            == PackageManager.PERMISSION_GRANTED) {
+            == PackageManager.PERMISSION_GRANTED
+        ) {
             openCamera()
         } else {
             ActivityCompat.requestPermissions(
@@ -131,14 +80,13 @@ class CameraActivity : AppCompatActivity() {
 
     private fun createImageUri(): Uri? {
         return try {
-            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+            val label = photoLabel ?: "Photo"
 
-            // Create filename with sequence number if in sequence mode
-            val imageFileName = if (isSequenceMode) {
-                "Photo_${currentPhotoNumber}_${timeStamp}.jpg"
-            } else {
-                "JPEG_${timeStamp}.jpg"
-            }
+            // Get the next number for this label
+            val photoNumber = getNextPhotoNumber(label)
+
+            // Generate abbreviated filename using PhotoLists
+            val imageFileName = PhotoLists.getPhotoFilename(label, photoNumber)
 
             // Determine the path based on whether an album is selected
             val relativePath = if (selectedAlbum != null) {
@@ -155,8 +103,12 @@ class CameraActivity : AppCompatActivity() {
                 }
             }
 
-            val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-            Log.d("CameraActivity", "Created URI in album '$selectedAlbum': $uri")
+            val uri =
+                contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            Log.d(
+                "CameraActivity",
+                "Created URI with filename '$imageFileName' in album '$selectedAlbum': $uri"
+            )
             uri
         } catch (e: Exception) {
             Log.e("CameraActivity", "Error creating image URI", e)
@@ -171,86 +123,55 @@ class CameraActivity : AppCompatActivity() {
         if (requestCode == CAMERA_REQUEST_CODE) {
             if (resultCode == RESULT_OK) {
                 currentPhotoUri?.let { uri ->
-//                    val message = if (isSequenceMode) {
-//                        "Photo $currentPhotoNumber saved!"
-//                    } else if (selectedAlbum != null) {
-//                        "Photo saved to '$selectedAlbum' album!"
-//                    } else {
-//                        "Photo saved successfully!"
-//                    }
-//                    Log.d("CameraActivity", "Photo saved successfully at: $uri")
-//                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+                    // Increment the counter for this label
+                    incrementPhotoNumber(photoLabel ?: "Photo")
 
-                    // If in sequence mode, save progress and continue to next photo
-                    if (isSequenceMode && currentPhotoNumber < totalPhotos) {
-                        currentPhotoNumber++
+                    val photoNumber = getCurrentPhotoNumber(photoLabel ?: "Photo")
+                    Toast.makeText(
+                        this,
+                        "Saved: ${photoLabel ?: "Photo"} ($photoNumber)",
+                        Toast.LENGTH_SHORT
+                    ).show()
 
-                        // Save progress to SharedPreferences
-                        saveSequenceProgress()
+                    Log.d("CameraActivity", "Photo saved successfully")
 
-                        // Restart camera for next photo
-                        val intent = Intent(this, CameraActivity::class.java).apply {
-                            putExtra("ALBUM_NAME", selectedAlbum)
-                            putExtra("SEQUENCE_MODE", true)
-                            putExtra("CURRENT_NUMBER", currentPhotoNumber)
-                            putExtra("TOTAL_PHOTOS", totalPhotos)
-                        }
-                        startActivity(intent)
-                    } else if (isSequenceMode && currentPhotoNumber >= totalPhotos) {
-                        Toast.makeText(this, "All $totalPhotos photos taken! ✓", Toast.LENGTH_LONG).show()
-                        // Clear sequence progress when complete
-                        clearSequenceProgress()
-                    }
+                    // Open camera again for next photo
+                    openCamera()
                 } ?: run {
                     Log.e("CameraActivity", "Photo URI is null")
                     Toast.makeText(this, "Error: Photo not saved", Toast.LENGTH_SHORT).show()
+                    finish()
                 }
             } else {
+                // User cancelled - delete the empty entry and exit
                 currentPhotoUri?.let { uri ->
                     contentResolver.delete(uri, null, null)
                     Log.d("CameraActivity", "Deleted cancelled photo entry")
                 }
-
-                // Save progress even when cancelled so user can resume
-                if (isSequenceMode) {
-                    saveSequenceProgress()
-                    val photoLabel = if (currentPhotoNumber <= PHOTO_LABELS.size) {
-                        PHOTO_LABELS[currentPhotoNumber - 1]
-                    } else {
-                        "Photo $currentPhotoNumber"
-                    }
-                    val message = "Sequence paused at: $photoLabel"
-                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this, "Photo capture cancelled", Toast.LENGTH_SHORT).show()
-                }
+                Toast.makeText(this, "Photo capture cancelled", Toast.LENGTH_SHORT).show()
+                finish()
             }
-            finish()
         }
     }
 
-    private fun saveSequenceProgress() {
+    private fun getNextPhotoNumber(label: String): Int {
         val sharedPrefs = getSharedPreferences("GQTPhotoApp", MODE_PRIVATE)
-        sharedPrefs.edit().apply {
-            putBoolean("sequence_in_progress", true)
-            putInt("sequence_current_number", currentPhotoNumber)
-            putInt("sequence_total_photos", totalPhotos)
-            putString("sequence_album", selectedAlbum)
-            apply()
-        }
-        Log.d("CameraActivity", "Saved sequence progress: $currentPhotoNumber of $totalPhotos")
+        val key = "photo_count_${selectedAlbum}_$label"
+        return sharedPrefs.getInt(key, 0) + 1
     }
 
-    private fun clearSequenceProgress() {
+    private fun getCurrentPhotoNumber(label: String): Int {
         val sharedPrefs = getSharedPreferences("GQTPhotoApp", MODE_PRIVATE)
-        sharedPrefs.edit().apply {
-            remove("sequence_in_progress")
-            remove("sequence_current_number")
-            remove("sequence_total_photos")
-            remove("sequence_album")
-            apply()
-        }
-        Log.d("CameraActivity", "Cleared sequence progress")
+        val key = "photo_count_${selectedAlbum}_$label"
+        return sharedPrefs.getInt(key, 0)
+    }
+
+    private fun incrementPhotoNumber(label: String) {
+        val sharedPrefs = getSharedPreferences("GQTPhotoApp", MODE_PRIVATE)
+        val key = "photo_count_${selectedAlbum}_$label"
+        val currentCount = sharedPrefs.getInt(key, 0)
+        sharedPrefs.edit().putInt(key, currentCount + 1).apply()
+        Log.d("CameraActivity", "Incremented count for '$label' to ${currentCount + 1}")
     }
 
     override fun onRequestPermissionsResult(
@@ -264,7 +185,11 @@ class CameraActivity : AppCompatActivity() {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 openCamera()
             } else {
-                Toast.makeText(this, "Camera permission is required to take photos", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    "Camera permission is required to take photos",
+                    Toast.LENGTH_SHORT
+                ).show()
                 finish()
             }
         }

@@ -3,16 +3,53 @@ package com.example.gqtphotoapp
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Button
-import android.widget.Toast
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.View
+import android.widget.*
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import com.example.gqtphotoapp.CameraActivity.Companion.PHOTO_LABELS
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 
 class MainActivity : AppCompatActivity() {
+
+    private lateinit var rgProductType: RadioGroup
+    private lateinit var etNumContainers: EditText
+    private lateinit var tvSampleCode: TextView
+    private lateinit var tvSampleContainers: TextView
+
+    private var currentProductType: PhotoLists.ProductType = PhotoLists.ProductType.OCC
+    private var numContainers: Int = 0
+    private var selectedSampleCode: PhotoLists.SampleCode = PhotoLists.SampleCode.II_A
+    private var numSampleContainers: Int = 0
+
+    companion object {
+        private const val PREFS_NAME = "GQTPhotoApp"
+        private const val KEY_PRODUCT_TYPE = "product_type"
+        private const val KEY_NUM_CONTAINERS = "num_containers"
+        private const val KEY_LAST_ALBUM = "last_selected_album"
+        private const val KEY_LAST_PHOTO_LABEL = "last_photo_label"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        // Initialize views
+        rgProductType = findViewById(R.id.rgProductType)
+        etNumContainers = findViewById(R.id.etNumContainers)
+        tvSampleCode = findViewById(R.id.tvSampleCode)
+        tvSampleContainers = findViewById(R.id.tvSampleContainers)
+
+        // Restore saved values
+        restoreSavedValues()
+
+        setupProductTypeSelection()
+        setupNumContainersInput()
+
+        // Setup window insets for system bars
+        setupWindowInsets()
 
         val btnAddAlbum = findViewById<Button>(R.id.btnAddAlbum)
         val btnChangeAlbum = findViewById<Button>(R.id.btnChangeAlbum)
@@ -26,21 +63,6 @@ class MainActivity : AppCompatActivity() {
         btnAddAlbum.setOnClickListener {
             val intent = Intent(this, AddAlbumActivity::class.java)
             startActivity(intent)
-        }
-
-        btnOpenCamera.setOnClickListener {
-            // Show dialog to choose mode
-            android.app.AlertDialog.Builder(this)
-                .setTitle("Camera Mode")
-                .setMessage("Choose camera mode:")
-                .setPositiveButton("Single Photo") { _, _ ->
-                    openCamera()
-                }
-                .setNegativeButton("Sequence (1-${CameraActivity.PHOTO_LABELS.size})") { _, _ ->
-                    openCameraSequence()
-                }
-                .setNeutralButton("Cancel", null)
-                .show()
         }
 
         btnViewPhotos.setOnClickListener {
@@ -66,122 +88,248 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        // Open Camera button - shows dialog to choose mode
+        // Open Camera button - shows photo label selection dialog
         btnOpenCamera.setOnClickListener {
-            checkAndResumeSequence()
+            showPhotoLabelSelectionDialog()
+        }
+    }
+
+    private fun restoreSavedValues() {
+        val sharedPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+        // Restore product type
+        val savedProductType = sharedPrefs.getString(KEY_PRODUCT_TYPE, PhotoLists.ProductType.OCC.name)
+        currentProductType = PhotoLists.ProductType.valueOf(savedProductType ?: PhotoLists.ProductType.OCC.name)
+
+        // Set the radio button based on saved product type
+        val radioButtonId = when (currentProductType) {
+            PhotoLists.ProductType.OCC -> R.id.rbOCC
+            PhotoLists.ProductType.SPRN -> R.id.rbSPRN
+            PhotoLists.ProductType.ALUMINIUM -> R.id.rbAluminium
+        }
+        rgProductType.check(radioButtonId)
+
+        // Restore number of containers
+        numContainers = sharedPrefs.getInt(KEY_NUM_CONTAINERS, 0)
+        if (numContainers > 0) {
+            etNumContainers.setText(numContainers.toString())
+        }
+
+        // Update sample info with restored values
+        updateSampleInfo()
+    }
+
+    private fun saveCurrentValues() {
+        val sharedPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        sharedPrefs.edit().apply {
+            putString(KEY_PRODUCT_TYPE, currentProductType.name)
+            putInt(KEY_NUM_CONTAINERS, numContainers)
+            apply()
+        }
+    }
+
+    private fun setupProductTypeSelection() {
+        rgProductType.setOnCheckedChangeListener { _, checkedId ->
+            currentProductType = when (checkedId) {
+                R.id.rbOCC -> PhotoLists.ProductType.OCC
+                R.id.rbSPRN -> PhotoLists.ProductType.SPRN
+                R.id.rbAluminium -> PhotoLists.ProductType.ALUMINIUM
+                else -> PhotoLists.ProductType.OCC
+            }
+            saveCurrentValues()
+            updateSampleInfo()
+        }
+    }
+
+    private fun setupNumContainersInput() {
+        etNumContainers.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+
+            override fun afterTextChanged(s: Editable?) {
+                val input = s.toString()
+                numContainers = if (input.isNotEmpty()) {
+                    input.toIntOrNull() ?: 0
+                } else {
+                    0
+                }
+                saveCurrentValues()
+                updateSampleInfo()
+            }
+        })
+    }
+
+    private fun updateSampleInfo() {
+        if (numContainers > 0) {
+            val (sampleCode, numSample) = PhotoLists.getSampleInfo(numContainers)
+            selectedSampleCode = sampleCode
+            numSampleContainers = numSample
+
+            // Display sample code
+            tvSampleCode.text = when (sampleCode) {
+                PhotoLists.SampleCode.II_A -> "II-A"
+                PhotoLists.SampleCode.II_B -> "II-B"
+                PhotoLists.SampleCode.II_C -> "II-C"
+                PhotoLists.SampleCode.II_D -> "II-D"
+            }
+
+            // Display number of sample containers
+            tvSampleContainers.text = numSample.toString()
+
+            // Enable buttons based on valid input
+            enableActionButtons(true)
+        } else {
+            tvSampleCode.text = "--"
+            tvSampleContainers.text = "--"
+            enableActionButtons(false)
+        }
+    }
+
+    private fun enableActionButtons(enabled: Boolean) {
+        findViewById<Button>(R.id.btnAddAlbum).isEnabled = enabled
+        findViewById<Button>(R.id.btnOpenCamera).isEnabled = enabled
+    }
+
+    // Helper function to get current photo categories
+    private fun getCurrentPhotoCategories(): List<PhotoCategory> {
+        return if (numContainers > 0) {
+            PhotoLists.getPhotoCategories(currentProductType, numContainers)
+        } else {
+            emptyList()
         }
     }
 
     override fun onResume() {
         super.onResume()
+        // Check if album was changed and clear values if needed
+        checkAlbumChange()
         // Update the camera button text to show current album
         updateCameraButtonText()
     }
 
-    private fun openCamera() {
-        // Get last selected album
-        val sharedPrefs = getSharedPreferences("GQTPhotoApp", Context.MODE_PRIVATE)
-        val lastAlbum = sharedPrefs.getString("last_selected_album", null)
+    private fun checkAlbumChange() {
+        val sharedPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val albumChangedFlag = sharedPrefs.getBoolean("album_changed", false)
 
-        val intent = Intent(this, CameraActivity::class.java)
-        lastAlbum?.let {
-            intent.putExtra("ALBUM_NAME", it)
+        if (albumChangedFlag) {
+            // Clear the product type and containers
+            clearInputValues()
+
+            // Also clear the last photo label
+            sharedPrefs.edit().apply {
+                remove(KEY_LAST_PHOTO_LABEL)
+                putBoolean("album_changed", false)
+                apply()
+            }
         }
-        startActivity(intent)
     }
 
-    // Single photo mode (your original behavior)
-    private fun openCameraSingle() {
-        val sharedPrefs = getSharedPreferences("GQTPhotoApp", Context.MODE_PRIVATE)
-        val lastAlbum = sharedPrefs.getString("last_selected_album", null)
-
-        val intent = Intent(this, CameraActivity::class.java)
-        lastAlbum?.let {
-            intent.putExtra("ALBUM_NAME", it)
+    private fun clearInputValues() {
+        // Clear SharedPreferences
+        val sharedPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        sharedPrefs.edit().apply {
+            remove(KEY_PRODUCT_TYPE)
+            remove(KEY_NUM_CONTAINERS)
+            apply()
         }
-        startActivity(intent)
+
+        // Reset UI
+        rgProductType.check(R.id.rbOCC)
+        currentProductType = PhotoLists.ProductType.OCC
+        etNumContainers.setText("")
+        numContainers = 0
+
+        // Update sample info
+        updateSampleInfo()
     }
 
-    // Sequence mode (new)
-    private fun openCameraSequence() {
-        val sharedPrefs = getSharedPreferences("GQTPhotoApp", Context.MODE_PRIVATE)
-        val lastAlbum = sharedPrefs.getString("last_selected_album", null)
+    private fun setupWindowInsets() {
+        // This handles the system bars (status bar and navigation bar)
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { view, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
+    }
+
+    private fun showPhotoLabelSelectionDialog() {
+        val photoCategories = getCurrentPhotoCategories()
+
+        if (photoCategories.isEmpty()) {
+            Toast.makeText(this, "Please enter number of containers first", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Create custom dialog with spinner
+        val dialogView = layoutInflater.inflate(R.layout.dialog_select_photo_label, null)
+        val spinner = dialogView.findViewById<Spinner>(R.id.spinnerPhotoLabel)
+
+        // Get photo labels
+        val photoLabels = photoCategories.map { it.label }
+
+        // Get the last selected photo label
+        val sharedPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val lastPhotoLabel = sharedPrefs.getString(KEY_LAST_PHOTO_LABEL, null)
+
+        // Find the index of the last selected label
+        var defaultSelection = 0
+        if (lastPhotoLabel != null) {
+            val lastIndex = photoLabels.indexOf(lastPhotoLabel)
+            if (lastIndex >= 0) {
+                defaultSelection = lastIndex
+            }
+        }
+
+        // Get current photo counts for all labels
+        val photoCounts = getPhotoCountsForLabels(photoLabels)
+
+        // Setup custom spinner adapter with color coding
+        val adapter = PhotoLabelAdapter(this, photoCategories, photoCounts, sharedPrefs.getString(KEY_LAST_ALBUM, null))
+        spinner.adapter = adapter
+
+        // Set selection after adapter is set
+        spinner.setSelection(defaultSelection)
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Select Photo Type")
+            .setView(dialogView)
+            .setPositiveButton("Take Photo") { _, _ ->
+                val selectedPosition = spinner.selectedItemPosition
+                val selectedLabel = photoLabels[selectedPosition]
+
+                // Save the selected photo label
+                sharedPrefs.edit().putString(KEY_LAST_PHOTO_LABEL, selectedLabel).apply()
+
+                openCameraWithLabel(selectedLabel)
+            }
+            .setNegativeButton("Cancel", null)
+            .create()
+
+        dialog.show()
+    }
+
+    private fun getPhotoCountsForLabels(labels: List<String>): Map<String, Int> {
+        val sharedPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val selectedAlbum = sharedPrefs.getString(KEY_LAST_ALBUM, null)
+
+        return labels.associateWith { label ->
+            val key = "photo_count_${selectedAlbum}_$label"
+            sharedPrefs.getInt(key, 0)
+        }
+    }
+
+    private fun openCameraWithLabel(photoLabel: String) {
+        val sharedPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val lastAlbum = sharedPrefs.getString(KEY_LAST_ALBUM, null)
 
         val intent = Intent(this, CameraActivity::class.java).apply {
             lastAlbum?.let {
                 putExtra("ALBUM_NAME", it)
             }
-            putExtra("SEQUENCE_MODE", true)
-            putExtra("CURRENT_NUMBER", 1)
-            putExtra("TOTAL_PHOTOS", CameraActivity.PHOTO_LABELS.size)
+            putExtra("PHOTO_LABEL", photoLabel)
         }
         startActivity(intent)
-    }
-
-    private fun checkAndResumeSequence() {
-        val sharedPrefs = getSharedPreferences("GQTPhotoApp", Context.MODE_PRIVATE)
-        val sequenceInProgress = sharedPrefs.getBoolean("sequence_in_progress", false)
-
-        if (sequenceInProgress) {
-            val currentNumber = sharedPrefs.getInt("sequence_current_number", 1)
-            val totalPhotos = sharedPrefs.getInt("sequence_total_photos", CameraActivity.PHOTO_LABELS.size)
-            val sequenceAlbum = sharedPrefs.getString("sequence_album", null)
-
-            // Show dialog to resume or start new
-            android.app.AlertDialog.Builder(this)
-                .setTitle("Resume Sequence?")
-                .setMessage("You have a sequence in progress: Photo $currentNumber of ${CameraActivity.PHOTO_LABELS.size}\n\nWhat would you like to do?")
-                .setPositiveButton("Resume") { _, _ ->
-                    resumeSequence(currentNumber, totalPhotos, sequenceAlbum)
-                }
-                .setNegativeButton("Start New") { _, _ ->
-                    // Clear old sequence and show camera mode dialog
-                    clearSequenceProgress()
-                    showCameraModeDialog()
-                }
-                .setNeutralButton("Cancel", null)
-                .show()
-        } else {
-            // No sequence in progress, show normal camera mode dialog
-            showCameraModeDialog()
-        }
-    }
-
-    private fun showCameraModeDialog() {
-        android.app.AlertDialog.Builder(this)
-            .setTitle("Camera Mode")
-            .setMessage("Choose camera mode:")
-            .setPositiveButton("Single Photo") { _, _ ->
-                openCameraSingle()
-            }
-            .setNegativeButton("Sequence (1-${CameraActivity.PHOTO_LABELS.size})") { _, _ ->
-                openCameraSequence()
-            }
-            .setNeutralButton("Cancel", null)
-            .show()
-    }
-
-    private fun resumeSequence(currentNumber: Int, totalPhotos: Int, albumName: String?) {
-        val intent = Intent(this, CameraActivity::class.java).apply {
-            albumName?.let {
-                putExtra("ALBUM_NAME", it)
-            }
-            putExtra("SEQUENCE_MODE", true)
-            putExtra("CURRENT_NUMBER", currentNumber)
-            putExtra("TOTAL_PHOTOS", totalPhotos)
-        }
-        startActivity(intent)
-    }
-
-    private fun clearSequenceProgress() {
-        val sharedPrefs = getSharedPreferences("GQTPhotoApp", Context.MODE_PRIVATE)
-        sharedPrefs.edit().apply {
-            remove("sequence_in_progress")
-            remove("sequence_current_number")
-            remove("sequence_total_photos")
-            remove("sequence_album")
-            apply()
-        }
     }
 
     private fun viewPhotos() {
@@ -191,8 +339,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateCameraButtonText() {
         val btnOpenCamera = findViewById<Button>(R.id.btnOpenCamera)
-        val sharedPrefs = getSharedPreferences("GQTPhotoApp", Context.MODE_PRIVATE)
-        val lastAlbum = sharedPrefs.getString("last_selected_album", null)
+        val sharedPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val lastAlbum = sharedPrefs.getString(KEY_LAST_ALBUM, null)
 
         btnOpenCamera.text = if (lastAlbum != null) {
             "Camera → $lastAlbum"
@@ -200,5 +348,4 @@ class MainActivity : AppCompatActivity() {
             "Open Camera"
         }
     }
-
 }
