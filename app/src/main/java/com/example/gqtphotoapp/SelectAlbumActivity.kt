@@ -1,7 +1,6 @@
 package com.example.gqtphotoapp
 
 import android.content.Context
-import android.content.Intent
 import android.os.Bundle
 import android.widget.ArrayAdapter
 import android.widget.Button
@@ -58,9 +57,11 @@ class SelectAlbumActivity : AppCompatActivity() {
 
         if (albumName != null) {
             editor.putString("last_selected_album", albumName)
+            editor.putBoolean("album_changed", true)  // Set flag to clear MainActivity values
             Toast.makeText(this, "Album '$albumName' selected for camera", Toast.LENGTH_SHORT).show()
         } else {
             editor.remove("last_selected_album")
+            editor.putBoolean("album_changed", true)  // Set flag to clear MainActivity values
             Toast.makeText(this, "Default folder selected for camera", Toast.LENGTH_SHORT).show()
         }
 

@@ -31,13 +31,16 @@ object PhotoLists {
     fun getPaperPhotoCategories(numSampleContainers: Int): List<PhotoCategory> {
         val numSampleBales = numSampleContainers * 2
 
-        return listOf(
+        val categories = mutableListOf(
+            PhotoCategory("Container List", minCount = 1),
             PhotoCategory("Overview", minCount = 3),
             PhotoCategory("Close View", minCount = 2),
             PhotoCategory("Radiation background", minCount = 1),
             PhotoCategory("Radiation", minCount = numSampleContainers),
             PhotoCategory("Moisture", minCount = numSampleBales),
             PhotoCategory("Sample Bale Weight", minCount = numSampleBales),
+            PhotoCategory("Scale Cert", minCount = 1),
+            PhotoCategory("Scale S/N", minCount = 1),
             PhotoCategory("Sample Bale on ground/scale", minCount = numSampleBales),
             PhotoCategory("Selfie with Sample Bale", minCount = 1),
             PhotoCategory("Loosed Sample Bale", minCount = numSampleBales),
@@ -49,13 +52,19 @@ object PhotoLists {
             PhotoCategory("Selfie with Total Unwanted Material Findings", minCount = 1),
             PhotoCategory("Total Unwanted Material Weights", minCount = numSampleBales),
             PhotoCategory("Empty Container", minCount = 1),
-            PhotoCategory("Selfie with Loading Container", minCount = 1),
-            PhotoCategory("Full-Loaded Container", minCount = numSampleContainers),
-            PhotoCategory("Selfie with Full Loaded Container", minCount = numSampleContainers),
-            PhotoCategory("Closed Container", minCount = numSampleContainers),
-            PhotoCategory("Selfie with Closed Container", minCount = numSampleContainers),
-            PhotoCategory("Seal", minCount = numSampleContainers)
+            PhotoCategory("Selfie with Loading Container", minCount = 1)
         )
+
+        // Generate individual container categories
+        for (i in 1..numSampleContainers) {
+            categories.add(PhotoCategory("Container $i - Full Loaded", minCount = 1))
+            categories.add(PhotoCategory("Container $i - Selfie with Full Loaded", minCount = 1))
+            categories.add(PhotoCategory("Container $i - Closed", minCount = 1))
+            categories.add(PhotoCategory("Container $i - Selfie with Closed", minCount = 1))
+            categories.add(PhotoCategory("Container $i - Seal", minCount = 1))
+        }
+
+        return categories
     }
 
     // Generate metal photo categories

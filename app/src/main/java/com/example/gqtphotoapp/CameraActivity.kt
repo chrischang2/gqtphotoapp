@@ -43,7 +43,8 @@ class CameraActivity : AppCompatActivity() {
 
     private fun checkCameraPermission() {
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA)
-            == PackageManager.PERMISSION_GRANTED) {
+            == PackageManager.PERMISSION_GRANTED
+        ) {
             openCamera()
         } else {
             ActivityCompat.requestPermissions(
@@ -100,8 +101,12 @@ class CameraActivity : AppCompatActivity() {
                 }
             }
 
-            val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-            Log.d("CameraActivity", "Created URI with filename '$imageFileName' in album '$selectedAlbum': $uri")
+            val uri =
+                contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            Log.d(
+                "CameraActivity",
+                "Created URI with filename '$imageFileName' in album '$selectedAlbum': $uri"
+            )
             uri
         } catch (e: Exception) {
             Log.e("CameraActivity", "Error creating image URI", e)
@@ -127,18 +132,23 @@ class CameraActivity : AppCompatActivity() {
                     ).show()
 
                     Log.d("CameraActivity", "Photo saved successfully")
+
+                    // Open camera again for next photo
+                    openCamera()
                 } ?: run {
                     Log.e("CameraActivity", "Photo URI is null")
                     Toast.makeText(this, "Error: Photo not saved", Toast.LENGTH_SHORT).show()
+                    finish()
                 }
             } else {
+                // User cancelled - delete the empty entry and exit
                 currentPhotoUri?.let { uri ->
                     contentResolver.delete(uri, null, null)
                     Log.d("CameraActivity", "Deleted cancelled photo entry")
                 }
                 Toast.makeText(this, "Photo capture cancelled", Toast.LENGTH_SHORT).show()
+                finish()
             }
-            finish()
         }
     }
 
@@ -173,7 +183,11 @@ class CameraActivity : AppCompatActivity() {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 openCamera()
             } else {
-                Toast.makeText(this, "Camera permission is required to take photos", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    "Camera permission is required to take photos",
+                    Toast.LENGTH_SHORT
+                ).show()
                 finish()
             }
         }
