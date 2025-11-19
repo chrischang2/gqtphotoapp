@@ -24,12 +24,16 @@ class MainActivity : AppCompatActivity() {
     private var selectedSampleCode: PhotoLists.SampleCode = PhotoLists.SampleCode.II_A
     private var numSampleContainers: Int = 0
 
+    // For sequential photo capture
+    private var currentPhotoLabel: String? = null
+
     companion object {
         private const val PREFS_NAME = "GQTPhotoApp"
         private const val KEY_PRODUCT_TYPE = "product_type"
         private const val KEY_NUM_CONTAINERS = "num_containers"
         private const val KEY_LAST_ALBUM = "last_selected_album"
         private const val KEY_LAST_PHOTO_LABEL = "last_photo_label"
+        private const val CAMERA_REQUEST_CODE = 200
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,9 +59,8 @@ class MainActivity : AppCompatActivity() {
         val btnChangeAlbum = findViewById<Button>(R.id.btnChangeAlbum)
         val btnOpenCamera = findViewById<Button>(R.id.btnOpenCamera)
         val btnViewPhotos = findViewById<Button>(R.id.btnViewPhotos)
-        val btnLabelPhoto = findViewById<Button>(R.id.btnLabelPhoto)
         val btnViewAlbums = findViewById<Button>(R.id.btnViewAlbums)
-        val btnSettings = findViewById<Button>(R.id.btnSettings)
+        val btnManageContainers = findViewById<Button>(R.id.btnManageContainers)
 
         // Add Album button - now opens new activity
         btnAddAlbum.setOnClickListener {
@@ -69,18 +72,10 @@ class MainActivity : AppCompatActivity() {
             viewPhotos()
         }
 
-        btnLabelPhoto.setOnClickListener {
-            Toast.makeText(this, "Label Photo - Coming Soon", Toast.LENGTH_SHORT).show()
-        }
-
         // View Albums button - now functional!
         btnViewAlbums.setOnClickListener {
             val intent = Intent(this, ViewAlbumsActivity::class.java)
             startActivity(intent)
-        }
-
-        btnSettings.setOnClickListener {
-            Toast.makeText(this, "Settings - Coming Soon", Toast.LENGTH_SHORT).show()
         }
 
         btnChangeAlbum.setOnClickListener {
@@ -91,6 +86,12 @@ class MainActivity : AppCompatActivity() {
         // Open Camera button - shows photo label selection dialog
         btnOpenCamera.setOnClickListener {
             showPhotoLabelSelectionDialog()
+        }
+
+        // Manage Container Folders button
+        btnManageContainers.setOnClickListener {
+            val intent = Intent(this, ContainerManagementActivity::class.java)
+            startActivity(intent)
         }
     }
 
@@ -301,6 +302,10 @@ class MainActivity : AppCompatActivity() {
                 // Save the selected photo label
                 sharedPrefs.edit().putString(KEY_LAST_PHOTO_LABEL, selectedLabel).apply()
 
+                // Store current photo label for sequential capture
+                currentPhotoLabel = selectedLabel
+
+                // Launch camera with startActivityForResult
                 openCameraWithLabel(selectedLabel)
             }
             .setNegativeButton("Cancel", null)
@@ -329,7 +334,24 @@ class MainActivity : AppCompatActivity() {
             }
             putExtra("PHOTO_LABEL", photoLabel)
         }
-        startActivity(intent)
+        startActivityForResult(intent, CAMERA_REQUEST_CODE)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == CAMERA_REQUEST_CODE) {
+            if (resultCode == RESULT_OK) {
+                // Photo was taken successfully, automatically open camera again
+                currentPhotoLabel?.let { label ->
+                    openCameraWithLabel(label)
+                }
+            } else {
+                // User cancelled - stop the sequential capture
+                currentPhotoLabel = null
+                Toast.makeText(this, "Photo capture stopped", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun viewPhotos() {
