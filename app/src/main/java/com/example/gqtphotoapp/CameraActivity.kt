@@ -33,9 +33,17 @@ class CameraActivity : AppCompatActivity() {
         // Get photo label from intent
         photoLabel = intent.getStringExtra("PHOTO_LABEL")
 
-        // Show user which photo type they're taking
+        // Show user which photo type they're taking with counter
         photoLabel?.let {
-            Toast.makeText(this, "Taking: $it", Toast.LENGTH_SHORT).show()
+            val currentCount = getCurrentPhotoNumber(it)
+            val minCount = getMinCountForLabel(it)
+
+            val displayMessage = if (minCount > 1) {
+                "Taking: $it ($currentCount/$minCount)"
+            } else {
+                "Taking: $it"
+            }
+            Toast.makeText(this, displayMessage, Toast.LENGTH_SHORT).show()
         }
 
         checkCameraPermission()
@@ -62,7 +70,6 @@ class CameraActivity : AppCompatActivity() {
 
         photoUri?.let {
             currentPhotoUri = it
-            Log.d("CameraActivity", "Photo will be saved to URI: $currentPhotoUri")
 
             cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, currentPhotoUri)
 
@@ -81,18 +88,25 @@ class CameraActivity : AppCompatActivity() {
     private fun createImageUri(): Uri? {
         return try {
             val label = photoLabel ?: "Photo"
-
-            // Get the next number for this label
             val photoNumber = getNextPhotoNumber(label)
+            val expectsMultiple = checkIfMultipleExpected(label)
 
-            // Generate abbreviated filename using PhotoLists
-            val imageFileName = PhotoLists.getPhotoFilename(label, photoNumber)
-
-            // Determine the path based on whether an album is selected
-            val relativePath = if (selectedAlbum != null) {
-                "Pictures/GQTPhotoApp/$selectedAlbum"
+            val imageFileName = if (expectsMultiple) {
+                PhotoLists.getPhotoFilename(label, photoNumber)
             } else {
-                "Pictures/GQTPhotoApp"
+                PhotoLists.getPhotoFilename(label, null)
+            }
+
+            // Get subfolder from PhotoLists
+            val sharedPrefs = getSharedPreferences("GQTPhotoApp", MODE_PRIVATE)
+            val numContainers = sharedPrefs.getInt("num_containers", 0)
+            val subfolder = PhotoLists.getSubfolder(label, numContainers, this)
+
+            // Build the path: album/subfolder
+            val relativePath = if (selectedAlbum != null) {
+                "Pictures/GQTPhotoApp/$selectedAlbum/$subfolder"
+            } else {
+                "Pictures/GQTPhotoApp/$subfolder"
             }
 
             val contentValues = ContentValues().apply {
@@ -103,13 +117,7 @@ class CameraActivity : AppCompatActivity() {
                 }
             }
 
-            val uri =
-                contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-            Log.d(
-                "CameraActivity",
-                "Created URI with filename '$imageFileName' in album '$selectedAlbum': $uri"
-            )
-            uri
+            contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
         } catch (e: Exception) {
             Log.e("CameraActivity", "Error creating image URI", e)
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -133,22 +141,21 @@ class CameraActivity : AppCompatActivity() {
                         Toast.LENGTH_SHORT
                     ).show()
 
-                    Log.d("CameraActivity", "Photo saved successfully")
-
-                    // Open camera again for next photo
-                    openCamera()
+                    // Return success to MainActivity
+                    setResult(RESULT_OK)
+                    finish()
                 } ?: run {
-                    Log.e("CameraActivity", "Photo URI is null")
                     Toast.makeText(this, "Error: Photo not saved", Toast.LENGTH_SHORT).show()
+                    setResult(RESULT_CANCELED)
                     finish()
                 }
             } else {
                 // User cancelled - delete the empty entry and exit
                 currentPhotoUri?.let { uri ->
                     contentResolver.delete(uri, null, null)
-                    Log.d("CameraActivity", "Deleted cancelled photo entry")
                 }
                 Toast.makeText(this, "Photo capture cancelled", Toast.LENGTH_SHORT).show()
+                setResult(RESULT_CANCELED)
                 finish()
             }
         }
@@ -157,6 +164,7 @@ class CameraActivity : AppCompatActivity() {
     private fun getNextPhotoNumber(label: String): Int {
         val sharedPrefs = getSharedPreferences("GQTPhotoApp", MODE_PRIVATE)
         val key = "photo_count_${selectedAlbum}_$label"
+        // Return current count + 1 (so first photo is 1, not 0)
         return sharedPrefs.getInt(key, 0) + 1
     }
 
@@ -171,7 +179,30 @@ class CameraActivity : AppCompatActivity() {
         val key = "photo_count_${selectedAlbum}_$label"
         val currentCount = sharedPrefs.getInt(key, 0)
         sharedPrefs.edit().putInt(key, currentCount + 1).apply()
-        Log.d("CameraActivity", "Incremented count for '$label' to ${currentCount + 1}")
+    }
+
+    private fun getMinCountForLabel(label: String): Int {
+        val sharedPrefs = getSharedPreferences("GQTPhotoApp", MODE_PRIVATE)
+        val numContainers = sharedPrefs.getInt("num_containers", 0)
+        val productTypeName = sharedPrefs.getString("product_type", PhotoLists.ProductType.OCC.name)
+
+        val productType = try {
+            PhotoLists.ProductType.valueOf(productTypeName ?: PhotoLists.ProductType.OCC.name)
+        } catch (e: Exception) {
+            Log.e("CameraActivity", "Error parsing product type, defaulting to OCC", e)
+            PhotoLists.ProductType.OCC
+        }
+
+        if (numContainers > 0) {
+            val categories = PhotoLists.getPhotoCategories(productType, numContainers)
+            val category = categories.find { it.label == label }
+            return category?.minCount ?: 1
+        }
+        return 1
+    }
+
+    private fun checkIfMultipleExpected(label: String): Boolean {
+        return getMinCountForLabel(label) > 1
     }
 
     override fun onRequestPermissionsResult(

@@ -12,6 +12,7 @@
         android:textSize="20sp"
         android:textStyle="bold"
         android:gravity="center"
+        android:layout_marginTop="96dp"
         android:layout_marginBottom="16dp"/>
 
     <TextView
@@ -47,6 +48,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Delete Album"
-        android:backgroundTint="@android:color/holo_red_light" />
+        android:backgroundTint="@android:color/holo_red_light"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="36dp" />
 
 </LinearLayout>

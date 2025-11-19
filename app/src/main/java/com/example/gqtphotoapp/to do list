@@ -1,0 +1,67 @@
+
+====================================================================================================
+=========================================== TO DO ==================================================
+====================================================================================================
+
+upload to dropbox automatically
+
+fill out form automatically
+
+
+
+
+====================================================================================================
+============================================  DONE  ================================================
+====================================================================================================
+
+
+
+
+===================================== END OF SESSION ===============================================
+add counter on dropdown to show how many out of mincount have been taken
+
+make name entry field for naming container folders - "3. {Container_1_num}", etc. so that
+i dont have to rename folders later
+
+camera seems to be opening multiple instances.
+have to click back 3 times to cancel photo capture
+
+add functionality to only enumerate files when more than one is expected
+if taking duplicates, starting numbering from (2)
+use mincount = 1 as indicator of whether more than one is expected
+
+add folders for:
+    - "1. Overview" contains:
+        OV (1), OV(2), etc.
+        CV (1), CV(2), etc.
+    - "2. Inspection" contains:
+        1
+        R (1) , R (2), ...
+        M (1), M (2), ...
+        BW (1), BW (2), ...
+        BL (1), BL (2), ...
+        BLS
+        SG (1), SG (2), ...
+        SGS
+        NP
+        NPW (1), NPW (2), ...
+        NPS
+        TUM
+        TUMW (1), TUMW (2), ...
+        TUMS
+    - "3. Container_1_number" contains:
+        C1_CL
+        C1_CLS
+        C1_FL
+        C1_FLS
+        C1_SEAL
+        Empty Container
+        Selfie with Loading Container
+    - "4. Container_2_number" contains:
+        C2_CL
+        C2_CLS
+        C2_FL
+        C2_FLS
+        C2_SEAL
+    - 5. Container_3_number, and so on.
+
