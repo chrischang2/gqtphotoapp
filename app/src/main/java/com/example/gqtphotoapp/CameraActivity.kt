@@ -194,7 +194,7 @@ class CameraActivity : AppCompatActivity() {
         }
 
         if (numContainers > 0) {
-            val categories = PhotoLists.getPhotoCategories(productType, numContainers)
+            val categories = PhotoLists.getPhotoCategories(productType, numContainers, selectedAlbum ?: "")
             val category = categories.find { it.label == label }
             return category?.minCount ?: 1
         }

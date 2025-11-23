@@ -194,8 +194,11 @@ class MainActivity : AppCompatActivity() {
 
     // Helper function to get current photo categories
     private fun getCurrentPhotoCategories(): List<PhotoCategory> {
+        val sharedPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val albumName = sharedPrefs.getString(KEY_LAST_ALBUM, "") ?: ""
+
         return if (numContainers > 0) {
-            PhotoLists.getPhotoCategories(currentProductType, numContainers)
+            PhotoLists.getPhotoCategories(currentProductType, numContainers, albumName)
         } else {
             emptyList()
         }
