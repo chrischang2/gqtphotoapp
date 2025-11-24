@@ -3,9 +3,22 @@
 =========================================== TO DO ==================================================
 ====================================================================================================
 
+
+
 upload to dropbox automatically
 
 fill out form automatically
+
+
+====================================================================================================
+============================================  ABANDONED  ===========================================
+====================================================================================================
+
+get job number from Clickup and change job status to "in progress"
+change clickup job status to completed once all done
+INSUFFICIENT PERMISSIONS - NEED ADMIN OR OWNER I THINK
+
+
 
 
 
@@ -18,6 +31,9 @@ fill out form automatically
 
 
 ===================================== END OF SESSION ===============================================
+GQDDT bookings need num_sample_bales * 2 real moisture photos for bales in container.
+total moisture photos will be num_sample_bales * 3
+
 add counter on dropdown to show how many out of mincount have been taken
 
 make name entry field for naming container folders - "3. {Container_1_num}", etc. so that

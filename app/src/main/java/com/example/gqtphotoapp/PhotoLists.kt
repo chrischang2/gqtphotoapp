@@ -51,7 +51,8 @@ object PhotoLists {
         "Selfie with Total Unwanted Material Findings" to "TUMS",
         "Total Unwanted Material Weights" to "TUMW",
         "Empty Container" to "Empty Container",
-        "Selfie with Loading Container" to "Selfie with Loading Container"
+        "Selfie with Loading Container" to "Selfie with Loading Container",
+        "Real Moisture" to "RM"
     )
 
     /**
@@ -78,18 +79,23 @@ object PhotoLists {
                 "Closed" -> "CL"
                 "Selfie with Closed" -> "CLS"
                 "Seal" -> "SEAL"
+                "Real Moisture" -> "RM"
                 else -> containerAction
             }
 
-            // Container photos are always single, no numbering
-            return "${actionCode}.${extension}"
+            // For Real Moisture, add numbering if photoIndex is provided
+            return if (containerAction == "Real Moisture" && photoIndex != null && photoIndex > 1) {
+                "${actionCode}(${photoIndex}).${extension}"
+            } else {
+                "${actionCode}.${extension}"
+            }
         }
 
         // Use the mapping for standard categories
         val baseFilename = filenameMap[categoryLabel] ?: categoryLabel
 
         // Add enumeration only if photoIndex is provided and > 1 (duplicates start at 2)
-        return if (photoIndex != null) {
+        return if (photoIndex != null && photoIndex > 1) {
             "${baseFilename}(${photoIndex}).${extension}"
         } else {
             "${baseFilename}.${extension}"
@@ -97,8 +103,9 @@ object PhotoLists {
     }
 
     // Generate paper photo categories based on num_sample_containers
-    fun getPaperPhotoCategories(numSampleContainers: Int): List<PhotoCategory> {
+    fun getPaperPhotoCategories(numSampleContainers: Int, albumName: String = ""): List<PhotoCategory> {
         val numSampleBales = numSampleContainers * 2
+        val isGQDDT = albumName.startsWith("GQDDT", ignoreCase = true)
 
         val categories = mutableListOf(
             PhotoCategory("Container List", minCount = 1),
@@ -131,6 +138,11 @@ object PhotoLists {
             categories.add(PhotoCategory("Container $i - Closed", minCount = 1))
             categories.add(PhotoCategory("Container $i - Selfie with Closed", minCount = 1))
             categories.add(PhotoCategory("Container $i - Seal", minCount = 1))
+
+            // Add Real Moisture photos for GQDDT albums only
+            if (isGQDDT) {
+                categories.add(PhotoCategory("Container $i - Real Moisture", minCount = 2))
+            }
         }
 
         return categories
@@ -146,14 +158,16 @@ object PhotoLists {
     }
 
     // Main function to get categories based on product type
+    @JvmOverloads
     fun getPhotoCategories(
         productType: ProductType,
-        numContainers: Int
+        numContainers: Int,
+        albumName: String = ""
     ): List<PhotoCategory> {
         val (_, numSampleContainers) = getSampleInfo(numContainers)
 
         return when (productType) {
-            ProductType.OCC, ProductType.SPRN -> getPaperPhotoCategories(numSampleContainers)
+            ProductType.OCC, ProductType.SPRN -> getPaperPhotoCategories(numSampleContainers, albumName)
             ProductType.ALUMINIUM -> getMetalPhotoCategories(numSampleContainers)
         }
     }
@@ -200,7 +214,7 @@ object PhotoLists {
         if (label == "Empty Container" || label == "Selfie with Loading Container") {
             val sharedPrefs = context.getSharedPreferences("GQTPhotoApp", Context.MODE_PRIVATE)
             val containerName = sharedPrefs.getString("container_1_number", "1") ?: "1"
-            return "3. ${containerName}"  // CHANGED: Removed "Container_" prefix
+            return "3. ${containerName}"
         }
 
         // Container-specific photos (using the "Container X - ..." format)
@@ -215,54 +229,58 @@ object PhotoLists {
             val containerName = sharedPrefs.getString("container_${containerNum}_number", containerNum.toString())
                 ?: containerNum.toString()
 
-            return "${folderNum}. ${containerName}"  // CHANGED: Removed "Container_" prefix
+            return "${folderNum}. ${containerName}"
         }
 
         // Fallback
         return "Other"
     }
 
-// Data class to track photo capture progress with checkbox functionality
-data class PhotoCategoryProgress(
-    val category: PhotoCategory,
-    val capturedCount: Int = 0,
-    val isCompleted: Boolean = false
-) {
-    fun needsMorePhotos(): Boolean = capturedCount < category.minCount
+    // Data class to track photo capture progress with checkbox functionality
+    data class PhotoCategoryProgress(
+        val category: PhotoCategory,
+        val capturedCount: Int = 0,
+        val isCompleted: Boolean = false
+    ) {
+        fun needsMorePhotos(): Boolean = capturedCount < category.minCount
 
-    fun getDisplayText(): String {
-        return "${category.label} ($capturedCount/${category.minCount})"
+        fun getDisplayText(): String {
+            return "${category.label} ($capturedCount/${category.minCount})"
+        }
     }
-}
 
-// Legacy support - keeping old functions for backward compatibility
-fun getListNames(): List<String> = listOf("II-A", "II-B", "II-C", "II-D")
+    // Legacy support - keeping old functions for backward compatibility
+    fun getListNames(): List<String> = listOf("II-A", "II-B", "II-C", "II-D")
 
-fun getList(name: String): List<String> {
-    // Default to II-A paper list for backward compatibility
-    val categories = PhotoLists.getPaperPhotoCategories(2)
-    return categories.map { it.label }
-}
+    fun getList(name: String): List<String> {
+        // Default to II-A paper list for backward compatibility
+        val categories = getPaperPhotoCategories(2)
+        return categories.map { it.label }
+    }
 }
 
 // Example usage:
 /*
-// Single photo (no numbering):
-val filename1 = PhotoLists.getPhotoFilename("Container List", null)
-// Result: "Container List.jpg"
+// GQDDT Album example:
+val categories = PhotoLists.getPhotoCategories(
+    ProductType.OCC,
+    numContainers = 10,
+    albumName = "GQDDT:Sample123"
+)
+// This will include "Container X - Real Moisture" with minCount = 2 for each container
 
-// First of multiple photos (no numbering):
-val filename2 = PhotoLists.getPhotoFilename("Overview", 1)
-// Result: "OV.jpg" (first photo has no number)
+// Real Moisture filenames:
+val filename1 = PhotoLists.getPhotoFilename("Container 1 - Real Moisture", 1)
+// Result: "RM.jpg" (first photo)
 
-// Duplicate photos (numbering starts at 2):
-val filename3 = PhotoLists.getPhotoFilename("Overview", 2)
-// Result: "OV(2).jpg"
+val filename2 = PhotoLists.getPhotoFilename("Container 1 - Real Moisture", 2)
+// Result: "RM(2).jpg" (second photo)
 
-val filename4 = PhotoLists.getPhotoFilename("Overview", 3)
-// Result: "OV(3).jpg"
-
-// Container photos (always single, no numbering):
-val filename5 = PhotoLists.getPhotoFilename("Container 3 - Seal", null)
-// Result: "C3_SEAL.jpg"
+// Non-GQDDT albums work as before:
+val categories2 = PhotoLists.getPhotoCategories(
+    ProductType.OCC,
+    numContainers = 10,
+    albumName = "Regular Album"
+)
+// This will NOT include "Real Moisture" photos
 */
