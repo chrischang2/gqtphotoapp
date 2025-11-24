@@ -1,4 +1,4 @@
-package com.example.gqtphotoapp
+package com.example.gqtphotoapp.photos
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -12,6 +12,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.gqtphotoapp.R
 
 class ViewPhotosActivity : AppCompatActivity() {
 

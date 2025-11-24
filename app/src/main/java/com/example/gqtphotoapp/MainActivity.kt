@@ -5,12 +5,29 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.example.gqtphotoapp.albums.AddAlbumActivity
+import com.example.gqtphotoapp.albums.SelectAlbumActivity
+import com.example.gqtphotoapp.albums.ViewAlbumsActivity
+import com.example.gqtphotoapp.camera.CameraActivity
+import com.example.gqtphotoapp.photos.PhotoCategory
+import com.example.gqtphotoapp.photos.PhotoLabelAdapter
+import com.example.gqtphotoapp.photos.PhotoLists
+import com.example.gqtphotoapp.photos.ViewPhotosActivity
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import androidx.work.workDataOf
+import com.example.gqtphotoapp.dropbox.DropboxAuthActivity
+import com.example.gqtphotoapp.dropbox.DropboxManager
+import com.example.gqtphotoapp.dropbox.NetworkMonitor
+import com.example.gqtphotoapp.dropbox.DropboxUploadWorker
 
 class MainActivity : AppCompatActivity() {
 
@@ -61,6 +78,20 @@ class MainActivity : AppCompatActivity() {
         val btnViewPhotos = findViewById<Button>(R.id.btnViewPhotos)
         val btnViewAlbums = findViewById<Button>(R.id.btnViewAlbums)
         val btnManageContainers = findViewById<Button>(R.id.btnManageContainers)
+
+        // In onCreate(), after the other button declarations:
+        val btnDropboxSettings = findViewById<Button>(R.id.btnDropboxSettings)
+        val btnUploadToDropbox = findViewById<Button>(R.id.btnUploadToDropbox)
+
+        // Add these click listeners after the other button listeners:
+        btnDropboxSettings.setOnClickListener {
+            val intent = Intent(this, DropboxAuthActivity::class.java)
+            startActivity(intent)
+        }
+
+        btnUploadToDropbox.setOnClickListener {
+            showUploadDialog()
+        }
 
         // Add Album button - now opens new activity
         btnAddAlbum.setOnClickListener {
@@ -206,8 +237,31 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Check if album was changed and clear values if needed
-        checkAlbumChange()
+
+        // Check if album was changed
+        val sharedPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val albumChangedFlag = sharedPrefs.getBoolean("album_changed", false)
+
+        if (albumChangedFlag) {
+            // Restore material info for the new album (including container names)
+            restoreAlbumMaterialInfo()
+
+            // Clear the album_changed flag and last_photo_label
+            sharedPrefs.edit().apply {
+                putBoolean("album_changed", false)
+                remove(KEY_LAST_PHOTO_LABEL)
+                apply()
+            }
+        } else {
+            // Even if album didn't change, ensure container names are in sync
+            // This handles the case where user renamed containers and came back to MainActivity
+            val currentAlbum = sharedPrefs.getString(KEY_LAST_ALBUM, null)
+            val numContainers = sharedPrefs.getInt(KEY_NUM_CONTAINERS, 0)
+            if (currentAlbum != null && numContainers > 0) {
+                restoreContainerNamesForAlbum(currentAlbum, numContainers)
+            }
+        }
+
         // Update the camera button text to show current album
         updateCameraButtonText()
     }
@@ -289,7 +343,12 @@ class MainActivity : AppCompatActivity() {
         val photoCounts = getPhotoCountsForLabels(photoLabels)
 
         // Setup custom spinner adapter with color coding
-        val adapter = PhotoLabelAdapter(this, photoCategories, photoCounts, sharedPrefs.getString(KEY_LAST_ALBUM, null))
+        val adapter = PhotoLabelAdapter(
+            this,
+            photoCategories,
+            photoCounts,
+            sharedPrefs.getString(KEY_LAST_ALBUM, null)
+        )
         spinner.adapter = adapter
 
         // Set selection after adapter is set
@@ -372,5 +431,193 @@ class MainActivity : AppCompatActivity() {
         } else {
             "Open Camera"
         }
+    }
+
+    private fun restoreAlbumMaterialInfo() {
+        val sharedPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val currentAlbum = sharedPrefs.getString(KEY_LAST_ALBUM, null)
+
+        if (currentAlbum != null) {
+            // Try to restore material type and containers for this specific album
+            val albumMaterialType = sharedPrefs.getString("${currentAlbum}_material_type", null)
+            val albumNumContainers = sharedPrefs.getInt("${currentAlbum}_num_containers", 0)
+
+            if (albumMaterialType != null && albumNumContainers > 0) {
+                // Album has saved settings - restore them
+                try {
+                    currentProductType = PhotoLists.ProductType.valueOf(albumMaterialType)
+                    val radioButtonId = when (currentProductType) {
+                        PhotoLists.ProductType.OCC -> R.id.rbOCC
+                        PhotoLists.ProductType.SPRN -> R.id.rbSPRN
+                        PhotoLists.ProductType.ALUMINIUM -> R.id.rbAluminium
+                    }
+                    rgProductType.check(radioButtonId)
+                } catch (e: IllegalArgumentException) {
+                    // If invalid product type, use default
+                    currentProductType = PhotoLists.ProductType.OCC
+                    rgProductType.check(R.id.rbOCC)
+                }
+
+                // Restore the number of containers
+                numContainers = albumNumContainers
+                etNumContainers.setText(numContainers.toString())
+
+                // Restore container names for this album
+                restoreContainerNamesForAlbum(currentAlbum, albumNumContainers)
+
+                // Update sample info
+                updateSampleInfo()
+
+                // Save these as current values
+                saveCurrentValues()
+
+                Toast.makeText(
+                    this,
+                    "Restored: $albumMaterialType - $albumNumContainers containers",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } else {
+                // Album has no saved settings - clear everything
+                clearInputValues()
+                clearContainerNames()
+                Toast.makeText(
+                    this,
+                    "Album '$currentAlbum' has no saved settings",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        } else {
+            // No album selected - clear everything
+            clearInputValues()
+            clearContainerNames()
+        }
+    }
+
+    private fun restoreContainerNamesForAlbum(albumName: String, numContainers: Int) {
+        val sharedPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val editor = sharedPrefs.edit()
+        val (_, numSample) = PhotoLists.getSampleInfo(numContainers)
+
+        // Load container names from album-specific keys to current keys
+        for (i in 1..numSample) {
+            val albumKey = "${albumName}_container_${i}_number"
+            val currentKey = "container_${i}_number"
+
+            val containerName = sharedPrefs.getString(albumKey, null)
+            if (containerName != null) {
+                editor.putString(currentKey, containerName)
+            } else {
+                editor.remove(currentKey)
+            }
+        }
+
+        editor.apply()
+    }
+
+    private fun clearContainerNames() {
+        val sharedPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val editor = sharedPrefs.edit()
+
+        // Clear all current container names (up to a reasonable maximum)
+        for (i in 1..50) {
+            editor.remove("container_${i}_number")
+        }
+
+        editor.apply()
+    }
+
+    private fun showUploadDialog() {
+        // Load albums from shared preferences
+        val sharedPrefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        val albums = sharedPrefs.getStringSet("albums", mutableSetOf())?.toList() ?: emptyList()
+
+        if (albums.isEmpty()) {
+            Toast.makeText(this, "No albums to upload", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Select an album to upload:")
+            .setItems(albums.toTypedArray()) { _, which ->
+                val albumToUpload = albums[which]
+                uploadAlbumToDropbox(albumToUpload)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun uploadAlbumToDropbox(albumName: String) {
+        val dropboxManager = DropboxManager.getInstance(this)
+
+        // Check if authenticated
+        if (!dropboxManager.isAuthenticated()) {
+            AlertDialog.Builder(this)
+                .setTitle("Connect to Dropbox")
+                .setMessage("You need to connect to Dropbox first. Go to Dropbox settings?")
+                .setPositiveButton("Yes") { _, _ ->
+                    val intent = Intent(this, DropboxAuthActivity::class.java)
+                    startActivity(intent)
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+            return
+        }
+
+        // Check WiFi
+        val networkMonitor = NetworkMonitor(this)
+        if (!networkMonitor.isWiFiConnected()) {
+            AlertDialog.Builder(this)
+                .setTitle("WiFi Required")
+                .setMessage("Upload requires WiFi connection. The upload will start automatically when you connect to WiFi.")
+                .setPositiveButton("OK") { _, _ ->
+                    scheduleUpload(albumName)
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+            return
+        }
+
+        // Schedule upload
+        scheduleUpload(albumName)
+    }
+
+    private fun scheduleUpload(albumName: String) {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.UNMETERED) // WiFi only
+            .build()
+
+        val uploadWorkRequest = OneTimeWorkRequestBuilder<DropboxUploadWorker>()
+            .setConstraints(constraints)
+            .setInputData(workDataOf(DropboxUploadWorker.KEY_ALBUM_NAME to albumName))
+            .build()
+
+        WorkManager.getInstance(this).enqueue(uploadWorkRequest)
+
+        Toast.makeText(this, "Upload queued for '$albumName'", Toast.LENGTH_SHORT).show()
+
+        // Observe progress
+        WorkManager.getInstance(this)
+            .getWorkInfoByIdLiveData(uploadWorkRequest.id)
+            .observe(this) { workInfo ->
+                if (workInfo != null) {
+                    when (workInfo.state) {
+                        WorkInfo.State.RUNNING -> {
+                            val uploaded = workInfo.progress.getInt(DropboxUploadWorker.KEY_UPLOADED_COUNT, 0)
+                            val total = workInfo.progress.getInt(DropboxUploadWorker.KEY_TOTAL_COUNT, 0)
+                            Toast.makeText(this, "Uploading: $uploaded/$total", Toast.LENGTH_SHORT).show()
+                        }
+                        WorkInfo.State.SUCCEEDED -> {
+                            val uploaded = workInfo.outputData.getInt(DropboxUploadWorker.KEY_UPLOADED_COUNT, 0)
+                            val total = workInfo.outputData.getInt(DropboxUploadWorker.KEY_TOTAL_COUNT, 0)
+                            Toast.makeText(this, "Upload complete! $uploaded/$total photos uploaded", Toast.LENGTH_LONG).show()
+                        }
+                        WorkInfo.State.FAILED -> {
+                            val error = workInfo.outputData.getString("error")
+                            Toast.makeText(this, "Upload failed: $error", Toast.LENGTH_LONG).show()
+                        }
+                        else -> {}
+                    }
+                }
+            }
     }
 }

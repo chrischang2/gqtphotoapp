@@ -1,10 +1,11 @@
-package com.example.gqtphotoapp
+package com.example.gqtphotoapp.albums
 
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.example.gqtphotoapp.R
 
 class AlbumAdapter(
     private val albums: List<String>,

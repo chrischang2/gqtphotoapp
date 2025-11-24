@@ -1,4 +1,4 @@
-package com.example.gqtphotoapp
+package com.example.gqtphotoapp.photos
 
 import android.graphics.BitmapFactory
 import android.view.LayoutInflater
@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.recyclerview.widget.RecyclerView
+import com.example.gqtphotoapp.R
 import java.io.File
 
 class PhotoGridAdapter(

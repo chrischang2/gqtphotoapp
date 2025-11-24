@@ -1,12 +1,13 @@
-package com.example.gqtphotoapp
+package com.example.gqtphotoapp.albums
 
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.gqtphotoapp.R
+import com.example.gqtphotoapp.photos.ViewPhotosActivity
 
 class ViewAlbumsActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
@@ -28,7 +29,7 @@ class ViewAlbumsActivity : AppCompatActivity() {
     }
 
     private fun loadAlbums() {
-        val sharedPrefs = getSharedPreferences("GQTPhotoApp", Context.MODE_PRIVATE)
+        val sharedPrefs = getSharedPreferences("GQTPhotoApp", MODE_PRIVATE)
         val albums = sharedPrefs.getStringSet("albums", setOf())?.toList() ?: emptyList()
 
         if (albums.isEmpty()) {

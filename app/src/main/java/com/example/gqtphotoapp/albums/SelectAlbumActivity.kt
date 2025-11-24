@@ -1,6 +1,6 @@
-package com.example.gqtphotoapp
+package com.example.gqtphotoapp.albums
 
-import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.widget.ArrayAdapter
 import android.widget.Button
@@ -8,6 +8,17 @@ import android.widget.ListView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import androidx.work.workDataOf
+import com.example.gqtphotoapp.R
+import com.example.gqtphotoapp.dropbox.DropboxAuthActivity
+import com.example.gqtphotoapp.dropbox.DropboxManager
+import com.example.gqtphotoapp.dropbox.NetworkMonitor
+import com.example.gqtphotoapp.dropbox.DropboxUploadWorker
 
 class SelectAlbumActivity : AppCompatActivity() {
 
@@ -55,16 +66,26 @@ class SelectAlbumActivity : AppCompatActivity() {
     }
 
     private fun loadAlbums() {
-        val sharedPrefs = getSharedPreferences("GQTPhotoApp", Context.MODE_PRIVATE)
+        val sharedPrefs = getSharedPreferences("GQTPhotoApp", MODE_PRIVATE)
         val albums = sharedPrefs.getStringSet("albums", mutableSetOf())?.toList() ?: emptyList()
         albumsList = albums.toMutableList()
     }
 
     private fun showCurrentSelection() {
-        val sharedPrefs = getSharedPreferences("GQTPhotoApp", Context.MODE_PRIVATE)
+        val sharedPrefs = getSharedPreferences("GQTPhotoApp", MODE_PRIVATE)
         val currentAlbum = sharedPrefs.getString("last_selected_album", null)
         if (currentAlbum != null) {
-            Toast.makeText(this, "Current: $currentAlbum", Toast.LENGTH_SHORT).show()
+            // Also show the saved material info if it exists
+            val materialType = sharedPrefs.getString("${currentAlbum}_material_type", null)
+            val containerNum = sharedPrefs.getInt("${currentAlbum}_num_containers", 0)
+
+            val details = if (materialType != null && containerNum > 0) {
+                " ($materialType, $containerNum containers)"
+            } else {
+                ""
+            }
+
+            Toast.makeText(this, "Current: $currentAlbum$details", Toast.LENGTH_LONG).show()
         } else {
             Toast.makeText(this, "Current: Default Folder", Toast.LENGTH_SHORT).show()
         }
@@ -98,7 +119,7 @@ class SelectAlbumActivity : AppCompatActivity() {
     }
 
     private fun deleteAlbum(albumName: String) {
-        val sharedPrefs = getSharedPreferences("GQTPhotoApp", Context.MODE_PRIVATE)
+        val sharedPrefs = getSharedPreferences("GQTPhotoApp", MODE_PRIVATE)
         val editor = sharedPrefs.edit()
 
         // Remove album from the set
@@ -111,6 +132,15 @@ class SelectAlbumActivity : AppCompatActivity() {
         if (currentAlbum == albumName) {
             editor.remove("last_selected_album")
             editor.putBoolean("album_changed", true)
+        }
+
+        // Remove the material info for this album
+        editor.remove("${albumName}_material_type")
+        editor.remove("${albumName}_num_containers")
+
+        // Remove all container names for this album (up to a reasonable maximum)
+        for (i in 1..50) {
+            editor.remove("${albumName}_container_${i}_number")
         }
 
         editor.apply()
@@ -127,13 +157,40 @@ class SelectAlbumActivity : AppCompatActivity() {
     }
 
     private fun saveAlbumSelection(albumName: String?) {
-        val sharedPrefs = getSharedPreferences("GQTPhotoApp", Context.MODE_PRIVATE)
+        val sharedPrefs = getSharedPreferences("GQTPhotoApp", MODE_PRIVATE)
         val editor = sharedPrefs.edit()
+
+        // Get current material type and container number from MainActivity
+        val currentMaterialType = sharedPrefs.getString("product_type", null)
+        val currentNumContainers = sharedPrefs.getInt("num_containers", 0)
+
+        // Save current album's settings before switching (if they exist)
+        val previousAlbum = sharedPrefs.getString("last_selected_album", null)
+        if (previousAlbum != null && currentMaterialType != null && currentNumContainers > 0) {
+            editor.putString("${previousAlbum}_material_type", currentMaterialType)
+            editor.putInt("${previousAlbum}_num_containers", currentNumContainers)
+
+            // Save container names for the previous album
+            saveContainerNamesForAlbum(previousAlbum, currentNumContainers)
+        }
 
         if (albumName != null) {
             editor.putString("last_selected_album", albumName)
             editor.putBoolean("album_changed", true)
-            Toast.makeText(this, "Album '$albumName' selected for camera", Toast.LENGTH_SHORT).show()
+
+            // Check if this album has saved settings
+            val savedMaterialType = sharedPrefs.getString("${albumName}_material_type", null)
+            val savedNumContainers = sharedPrefs.getInt("${albumName}_num_containers", 0)
+
+            if (savedMaterialType != null && savedNumContainers > 0) {
+                Toast.makeText(
+                    this,
+                    "Album '$albumName' selected\nRestoring: $savedMaterialType - $savedNumContainers containers",
+                    Toast.LENGTH_LONG
+                ).show()
+            } else {
+                Toast.makeText(this, "Album '$albumName' selected (no saved settings)", Toast.LENGTH_SHORT).show()
+            }
         } else {
             editor.remove("last_selected_album")
             editor.putBoolean("album_changed", true)
@@ -142,5 +199,26 @@ class SelectAlbumActivity : AppCompatActivity() {
 
         editor.apply()
         finish()
+    }
+
+    private fun saveContainerNamesForAlbum(albumName: String, numContainers: Int) {
+        val sharedPrefs = getSharedPreferences("GQTPhotoApp", MODE_PRIVATE)
+        val editor = sharedPrefs.edit()
+        val (_, numSample) = com.example.gqtphotoapp.photos.PhotoLists.getSampleInfo(numContainers)
+
+        // Save each container name from the current album-less keys to album-specific keys
+        for (i in 1..numSample) {
+            val currentKey = "container_${i}_number"
+            val albumKey = "${albumName}_container_${i}_number"
+
+            val containerName = sharedPrefs.getString(currentKey, null)
+            if (containerName != null) {
+                editor.putString(albumKey, containerName)
+            } else {
+                editor.remove(albumKey)
+            }
+        }
+
+        editor.apply()
     }
 }

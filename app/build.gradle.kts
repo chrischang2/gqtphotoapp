@@ -61,4 +61,12 @@ dependencies {
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.cardview:cardview:1.0.0")
+    // Dropbox
+    implementation("com.dropbox.core:dropbox-core-sdk:5.4.5")
+    // WorkManager
+    implementation("androidx.work:work-runtime-ktx:2.8.1")
+    // Encrypted SharedPreferences
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    // Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }

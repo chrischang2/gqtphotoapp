@@ -1,4 +1,4 @@
-package com.example.gqtphotoapp
+package com.example.gqtphotoapp.photos
 
 import android.content.Context
 
