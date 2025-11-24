@@ -5,10 +5,9 @@
 
 
 
-upload to dropbox automatically
+
 
 fill out form automatically
-
 
 ====================================================================================================
 ============================================  ABANDONED  ===========================================
@@ -21,16 +20,23 @@ INSUFFICIENT PERMISSIONS - NEED ADMIN OR OWNER I THINK
 
 
 
-
-
 ====================================================================================================
 ============================================  DONE  ================================================
 ====================================================================================================
 
+fix uploading 0/0 bug
 
+add remembering number of conatiners in job
 
+put upload to dropbox on main screen
 
-===================================== END OF SESSION ===============================================
+add clear container folder names when changing album, remember containers names for each job
+
+reorganise dropbox buttons to front page
+
+===
+upload to dropbox automatically
+
 GQDDT bookings need num_sample_bales * 2 real moisture photos for bales in container.
 total moisture photos will be num_sample_bales * 3
 

@@ -1,19 +1,17 @@
-package com.example.gqtphotoapp
+package com.example.gqtphotoapp.albums
 
 import android.Manifest
-import android.content.ContentValues
-import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
-import android.provider.MediaStore
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.example.gqtphotoapp.R
 import java.io.File
 
 class AddAlbumActivity : AppCompatActivity() {
@@ -79,7 +77,7 @@ class AddAlbumActivity : AppCompatActivity() {
     }
 
     private fun createAlbumFolder(albumName: String): Boolean {
-        val sharedPrefs = getSharedPreferences("GQTPhotoApp", Context.MODE_PRIVATE)
+        val sharedPrefs = getSharedPreferences("GQTPhotoApp", MODE_PRIVATE)
         val albums = sharedPrefs.getStringSet("albums", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
 
         // Check if album already exists
@@ -105,7 +103,7 @@ class AddAlbumActivity : AppCompatActivity() {
             val relativePath = "${Environment.DIRECTORY_PICTURES}/GQTPhotoApp/$albumName"
 
             // Save this path for use when capturing photos
-            val sharedPrefs = getSharedPreferences("GQTPhotoApp", Context.MODE_PRIVATE)
+            val sharedPrefs = getSharedPreferences("GQTPhotoApp", MODE_PRIVATE)
             sharedPrefs.edit().putString("album_path_$albumName", relativePath).apply()
         } else {
             // For older Android versions, create actual directory

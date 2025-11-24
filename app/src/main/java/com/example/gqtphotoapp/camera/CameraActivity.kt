@@ -1,7 +1,7 @@
-package com.example.gqtphotoapp
+package com.example.gqtphotoapp.camera
 
+import android.Manifest
 import android.content.ContentValues
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -13,8 +13,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import java.text.SimpleDateFormat
-import java.util.*
+import com.example.gqtphotoapp.photos.PhotoLists
 
 class CameraActivity : AppCompatActivity() {
 
@@ -50,14 +49,14 @@ class CameraActivity : AppCompatActivity() {
     }
 
     private fun checkCameraPermission() {
-        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
             == PackageManager.PERMISSION_GRANTED
         ) {
             openCamera()
         } else {
             ActivityCompat.requestPermissions(
                 this,
-                arrayOf(android.Manifest.permission.CAMERA),
+                arrayOf(Manifest.permission.CAMERA),
                 CAMERA_PERMISSION_CODE
             )
         }

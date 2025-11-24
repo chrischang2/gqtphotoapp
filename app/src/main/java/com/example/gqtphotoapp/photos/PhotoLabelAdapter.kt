@@ -1,5 +1,6 @@
-package com.example.gqtphotoapp
+package com.example.gqtphotoapp.photos
 
+import android.R
 import android.content.Context
 import android.graphics.Color
 import android.view.View
@@ -12,10 +13,10 @@ class PhotoLabelAdapter(
     private val photoCategories: List<PhotoCategory>,
     private val photoCounts: Map<String, Int>,
     private val selectedAlbum: String?
-) : ArrayAdapter<String>(context, android.R.layout.simple_spinner_item, photoCategories.map { it.label }) {
+) : ArrayAdapter<String>(context, R.layout.simple_spinner_item, photoCategories.map { it.label }) {
 
     init {
-        setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        setDropDownViewResource(R.layout.simple_spinner_dropdown_item)
     }
 
     override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
